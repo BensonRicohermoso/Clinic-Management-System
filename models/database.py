@@ -1,0 +1,157 @@
+"""
+Clinical Management System - Database Models and Schema
+SQLite database initialization and connection management.
+
+Tables:
+- users: Staff/Nurse authentication
+- patients: Patient records
+- vitals: Vital signs tracking
+- appointments: Appointment scheduling
+"""
+
+import sqlite3
+from flask import g, current_app
+from werkzeug.security import generate_password_hash
+
+def get_db():
+    """
+    Get database connection. Creates a new connection if one doesn't exist
+    in the application context.
+    """
+    if 'db' not in g:
+        g.db = sqlite3.connect(
+            current_app.config['DATABASE'],
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+def close_db(e=None):
+    """Close database connection"""
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    """
+    Initialize the database with tables and default data.
+    Creates all necessary tables and adds a default admin user.
+    """
+    db = get_db()
+    
+    # Create users table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'nurse',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create patients table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS patients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            gender TEXT NOT NULL,
+            blood_type TEXT,
+            allergies TEXT,
+            contact TEXT,
+            address TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create vitals table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS vitals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            blood_pressure TEXT NOT NULL,
+            heart_rate INTEGER NOT NULL,
+            temperature REAL NOT NULL,
+            respiratory_rate INTEGER NOT NULL,
+            oxygen_saturation INTEGER,
+            notes TEXT,
+            recorded_by TEXT NOT NULL,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create appointments table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            time TIME NOT NULL,
+            reason TEXT NOT NULL,
+            status TEXT DEFAULT 'scheduled',
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Check if default admin user exists
+    admin = db.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
+    
+    if not admin:
+        # Create default admin user (username: admin, password: admin123)
+        db.execute(
+            'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
+            ('admin', generate_password_hash('admin123'), 'System Administrator', 'admin')
+        )
+        
+        # Create sample nurse user (username: nurse1, password: nurse123)
+        db.execute(
+            'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
+            ('nurse1', generate_password_hash('nurse123'), 'Nurse Jane Doe', 'nurse')
+        )
+        
+        print("Default users created:")
+        print("  Admin - Username: admin, Password: admin123")
+        print("  Nurse - Username: nurse1, Password: nurse123")
+    
+    db.commit()
+
+def seed_sample_data():
+    """
+    Seed the database with sample data for testing.
+    This is optional and can be called separately.
+    """
+    db = get_db()
+    
+    # Check if sample data already exists
+    patient_count = db.execute('SELECT COUNT(*) as count FROM patients').fetchone()['count']
+    
+    if patient_count == 0:
+        # Add sample patients
+        sample_patients = [
+            ('John Smith', 45, 'Male', 'O+', 'Penicillin', '555-0101', '123 Main St'),
+            ('Mary Johnson', 62, 'Female', 'A+', 'None', '555-0102', '456 Oak Ave'),
+            ('Robert Brown', 38, 'Male', 'B-', 'Aspirin', '555-0103', '789 Pine Rd'),
+            ('Patricia Davis', 55, 'Female', 'AB+', 'Latex', '555-0104', '321 Elm St'),
+            ('Michael Wilson', 71, 'Male', 'O-', 'Sulfa drugs', '555-0105', '654 Maple Dr')
+        ]
+        
+        for patient in sample_patients:
+            db.execute(
+                '''INSERT INTO patients (name, age, gender, blood_type, allergies, contact, address)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                patient
+            )
+        
+        db.commit()
+        print("Sample patient data added successfully!")
+
+# Register database teardown
+def init_app(app):
+    """Register database functions with Flask app"""
+    app.teardown_appcontext(close_db)
