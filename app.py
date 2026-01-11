@@ -61,7 +61,13 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
-            flash(f'Welcome back, {user["full_name"]}!', 'success')
+            
+            # Customize welcome message based on username
+            if user['username'] == 'nurse1':
+                flash(f'Welcome back, Nurse!', 'success')
+            else:
+                flash(f'Welcome back, {user["full_name"]}!', 'success')
+            
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'error')

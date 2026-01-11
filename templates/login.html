@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Clinical Management System</title>
+    <title>Login - eCare Medical Records</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,11 +23,26 @@
             50% { transform: scale(1.05); }
         }
         .pulse-animation { animation: pulse 2s infinite; }
+        
+        /* Improve image rendering quality */
+        .logo-watermark {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-green-700 via-yellow-500 to-green-600 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gradient-to-br from-green-700 via-green-500 to-white min-h-screen flex items-center justify-center p-4 relative">
+        <!-- CEFI Logo Watermark -->
+    <div class="fixed left-8 top-1/2 transform -translate-y-1/2 opacity-15 pointer-events-none z-0">
+        <img src="{{ url_for('static', filename='images/cefi-logo.png') }}" alt="CEFI Logo" class="logo-watermark w-[500px] h-[500px] object-contain">
+    </div>
     
-    <!-- Flash Messages -->
+    <!-- Heart Logo Watermark -->
+    <div class="fixed right-8 top-1/2 transform -translate-y-1/2 opacity-15 pointer-events-none z-0">
+        <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Heart Logo" class="logo-watermark w-[500px] h-[500px] object-contain">
+    </div>
+    
+        <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="fixed top-4 right-4 z-50 space-y-2">
@@ -44,16 +59,16 @@
     {% endwith %}
 
     <!-- Login Card -->
-    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-md w-full fade-in">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-md w-full fade-in relative z-10">
         <!-- Header -->
-        <div class="bg-gradient-to-r from-green-700 to-yellow-500 px-8 py-6">
+        <div class="bg-gradient-to-r from-green-700 to-green-600 px-8 py-6">
             <div class="flex items-center justify-center mb-2">
                 <div class="bg-white rounded-full p-3 pulse-animation">
-                    <i class="fas fa-heartbeat text-green-700 text-4xl"></i>
+                    <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Heart Logo" class="w-16 h-16 object-contain">
                 </div>
             </div>
-            <h1 class="text-3xl font-bold text-white text-center">Clinical CMS</h1>
-            <p class="text-green-100 text-center mt-2">Nursing Management System</p>
+            <h1 class="text-3xl font-bold text-white text-center">eCare Medical Records</h1>
+            <p class="text-white text-center mt-2 opacity-90">Nursing Management System</p>
         </div>
 
         <!-- Login Form -->
@@ -68,7 +83,7 @@
                            id="username" 
                            name="username" 
                            required
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                            placeholder="Enter your username"
                            autocomplete="username">
                 </div>
@@ -82,14 +97,14 @@
                            id="password" 
                            name="password" 
                            required
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
                            placeholder="Enter your password"
                            autocomplete="current-password">
                 </div>
 
                 <!-- Submit Button -->
                 <button type="submit" 
-                        class="w-full bg-gradient-to-r from-green-700 to-yellow-500 hover:from-green-800 hover:to-yellow-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105">
+                        class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105">
                     <i class="fas fa-sign-in-alt mr-2"></i>Sign In
                 </button>
             </form>

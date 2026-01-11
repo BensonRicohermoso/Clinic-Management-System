@@ -1,4 +1,4 @@
-# 🏥 Clinical Management System
+# 🏥 eCare Medical Records
 
 A comprehensive Flask-based nursing management system for patient tracking, vital signs monitoring, and appointment scheduling. Built with modern web technologies and featuring an intuitive olive green and yellow color theme.
 
