@@ -48,6 +48,7 @@ def init_db():
             allergies TEXT,
             contact TEXT,
             address TEXT,
+            payment_method TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -93,9 +94,17 @@ def init_db():
             status TEXT DEFAULT 'waiting',
             added_by TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE,
+            UNIQUE(patient_id, status)
         )
     ''')
+    
+    # Create indexes for foreign keys to improve query performance
+    db.execute('CREATE INDEX IF NOT EXISTS idx_vitals_patient_id ON vitals(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_consultations_patient_id ON consultations(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultations(status)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date)')
     
     # Check if default admin user exists
     admin = db.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
@@ -113,9 +122,13 @@ def init_db():
             ('nurse1', generate_password_hash('nurse123'), 'Nurse Jane Doe', 'nurse')
         )
         
-        print("Default users created:")
+        print("\n" + "="*70)
+        print("  SECURITY WARNING: Default credentials created!")
+        print("="*70)
         print("  Admin - Username: admin, Password: admin123")
         print("  Nurse - Username: nurse1, Password: nurse123")
+        print("\n  ⚠️  IMPORTANT: Change these passwords immediately in production!")
+        print("="*70 + "\n")
     
     db.commit()
 

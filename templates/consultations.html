@@ -28,12 +28,23 @@
                     <div class="flex-1">
                         <p class="font-semibold text-gray-900 text-lg">{{ consult.name }}</p>
                         <div class="flex gap-4 mt-2">
-                            <button onclick='openPatientProfile({{ consult.patient_id }}, `{{ consult.name }}`, `{{ consult.date_of_birth }}`, `{{ consult.gender }}`, `{{ consult.blood_type }}`, `{{ consult.allergies }}`, `{{ consult.contact }}`, `{{ consult.address }}`, `{{ consult.created_at }}`)' 
+                            <button data-patient-id="{{ consult.patient_id }}"
+                                    data-name="{{ consult.name }}"
+                                    data-dob="{{ consult.date_of_birth }}"
+                                    data-gender="{{ consult.gender }}"
+                                    data-blood="{{ consult.blood_type }}"
+                                    data-allergies="{{ consult.allergies }}"
+                                    data-contact="{{ consult.contact }}"
+                                    data-address="{{ consult.address }}"
+                                    data-created="{{ consult.created_at }}"
+                                    onclick="openPatientProfileFromData(this)"
                                     class="text-blue-600 hover:text-blue-900 text-sm font-medium"
                                     title="View Profile">
                                 <i class="fas fa-id-card mr-1"></i>Profile
                             </button>
-                            <button onclick='openHistoryModal({{ consult.patient_id }}, `{{ consult.name }}`)' 
+                            <button data-patient-id="{{ consult.patient_id }}"
+                                    data-name="{{ consult.name }}"
+                                    onclick="openHistoryModalFromData(this)"
                                     class="text-purple-600 hover:text-purple-900 text-sm font-medium"
                                     title="View History">
                                 <i class="fas fa-folder-open mr-1"></i>History
@@ -45,18 +56,22 @@
                     <span class="text-xs text-gray-500 mr-2">
                         <i class="far fa-clock mr-1"></i>{{ consult.created_at }}
                     </span>
-                    <a href="{{ url_for('complete_consultation', id=consult.id) }}" 
-                       onclick="return confirm('Mark this consultation as complete?')"
-                       class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                       title="Complete Consultation">
+                    <button type="button"
+                            data-consult-id="{{ consult.id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="showCompleteConfirm(this.dataset.consultId, this.dataset.patientName)"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            title="Complete Consultation">
                         <i class="fas fa-check mr-1"></i>Complete
-                    </a>
-                    <a href="{{ url_for('remove_from_consultation', id=consult.id) }}" 
-                       onclick="return confirm('Remove this patient from consultation queue?')"
-                       class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                       title="Remove from Queue">
+                    </button>
+                    <button type="button"
+                            data-consult-id="{{ consult.id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="showRemoveConfirm(this.dataset.consultId, this.dataset.patientName)"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            title="Remove from Queue">
                         <i class="fas fa-times mr-1"></i>Remove
-                    </a>
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -175,7 +190,7 @@
         <!-- Content to be printed/exported -->
         <div id="historyContent" class="space-y-6">
             <!-- Clinic Header for PDF -->
-            <div class="text-center border-b pb-4 print-only" style="display: none;">
+            <div class="text-center border-b pb-4 print-only">
                 <h1 class="text-3xl font-bold text-gray-900">eCare Medical Records</h1>
                 <p class="text-sm text-gray-600 mt-1">Contact: +1 (555) 123-4567 | Email: info@ecaremedical.com</p>
                 <p class="text-lg font-semibold text-gray-800 mt-2">Patient Medical History Report</p>
@@ -216,6 +231,80 @@
             <button onclick="closeHistoryModal()" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                 Close
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Consultation Confirmation Modal -->
+<div id="completeConfirmModal" class="hidden fixed inset-0">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-check-circle mr-3 text-2xl"></i>Complete Consultation
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start mb-6">
+                    <div class="flex-shrink-0 bg-green-100 rounded-full p-3">
+                        <i class="fas fa-user-check text-green-600 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-lg font-semibold text-gray-900 mb-2">Confirm Completion</p>
+                        <p class="text-gray-600">
+                            Mark consultation for <strong id="complete_patient_name" class="text-gray-900"></strong> as complete?
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeCompleteConfirm()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="button" onclick="confirmComplete()" 
+                            class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-check mr-2"></i>Complete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remove from Queue Confirmation Modal -->
+<div id="removeConfirmModal" class="hidden fixed inset-0">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-user-times mr-3 text-2xl"></i>Remove from Queue
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start mb-6">
+                    <div class="flex-shrink-0 bg-red-100 rounded-full p-3">
+                        <i class="fas fa-exclamation text-red-600 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-lg font-semibold text-gray-900 mb-2">Confirm Removal</p>
+                        <p class="text-gray-600">
+                            Remove <strong id="remove_patient_name" class="text-gray-900"></strong> from the consultation queue?
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeRemoveConfirm()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="button" onclick="confirmRemove()" 
+                            class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-trash mr-2"></i>Remove
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -390,8 +479,90 @@
         document.getElementById('profileModal').classList.remove('hidden');
     }
     
+    function openPatientProfileFromData(button) {
+        const data = button.dataset;
+        openPatientProfile(
+            data.patientId,
+            data.name,
+            data.dob,
+            data.gender,
+            data.blood,
+            data.allergies,
+            data.contact,
+            data.address,
+            data.created
+        );
+    }
+    
     function closeProfileModal() {
         document.getElementById('profileModal').classList.add('hidden');
+    }
+    
+    function openHistoryModalFromData(button) {
+        const data = button.dataset;
+        openHistoryModal(data.patientId, data.name);
+    }
+    
+    // Complete consultation confirmation
+    let completeConsultId = null;
+    
+    function showCompleteConfirm(consultId, patientName) {
+        completeConsultId = consultId;
+        const modal = document.getElementById('completeConfirmModal');
+        const nameElement = document.getElementById('complete_patient_name');
+        
+        if (nameElement) {
+            nameElement.textContent = patientName;
+        }
+        
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function closeCompleteConfirm() {
+        const modal = document.getElementById('completeConfirmModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        completeConsultId = null;
+    }
+    
+    function confirmComplete() {
+        if (completeConsultId) {
+            window.location.href = `/consultations/complete/${completeConsultId}`;
+        }
+    }
+    
+    // Remove from queue confirmation
+    let removeConsultId = null;
+    
+    function showRemoveConfirm(consultId, patientName) {
+        removeConsultId = consultId;
+        const modal = document.getElementById('removeConfirmModal');
+        const nameElement = document.getElementById('remove_patient_name');
+        
+        if (nameElement) {
+            nameElement.textContent = patientName;
+        }
+        
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function closeRemoveConfirm() {
+        const modal = document.getElementById('removeConfirmModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        removeConsultId = null;
+    }
+    
+    function confirmRemove() {
+        if (removeConsultId) {
+            window.location.href = `/consultations/remove/${removeConsultId}`;
+        }
     }
 </script>
 {% endblock %}

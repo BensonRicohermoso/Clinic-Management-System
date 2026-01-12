@@ -7,8 +7,11 @@ A Flask-based system for managing patient records, vital signs, and appointments
 - Patient management (add, edit, delete records)
 - Vital signs tracking (BP, HR, temp, RR, SpO2)
 - Appointment scheduling
+- Consultation queue management
 - Dashboard with stats
 - User authentication
+- Automated database backups
+- Payment method tracking
 
 ## Setup
 
@@ -20,29 +23,74 @@ A Flask-based system for managing patient records, vital signs, and appointments
 pip install -r requirements.txt
 ```
 
-3. Run the app:
+3. Configure environment (optional but recommended):
+
+```bash
+# Copy the example environment file
+copy .env.example .env
+
+# Edit .env and set your SECRET_KEY
+# Generate a secure key: python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+4. Run the app:
 
 ```bash
 python app.py
 ```
 
-4. Open browser to `http://127.0.0.1:5000`
+5. Open browser to `http://127.0.0.1:5000`
 
 ## Login
 
-Default accounts:
+Default accounts (created on first run):
 
 - Admin: `admin` / `admin123`
 - Nurse: `nurse1` / `nurse123`
 
-**Note:** Change these passwords if using for real
+**⚠️ SECURITY WARNING:** Change these passwords immediately in production!
+
+## Security Best Practices
+
+### Before Production Deployment:
+
+1. **Change Default Passwords**
+
+   - Log in as admin and change the default password
+   - Update or remove the default nurse account
+
+2. **Set Environment Variables**
+
+   - Generate a strong SECRET_KEY
+   - Set DATABASE_PATH if using custom location
+   - Never commit .env file to version control
+
+3. **Database Backups**
+
+   - Run regular backups: `python backup_database.py`
+   - Backups are stored in `backups/` directory
+   - List backups: `python backup_database.py list`
+   - Automatic cleanup keeps last 30 backups
+
+4. **Network Security**
+
+   - Use HTTPS in production (set SESSION_COOKIE_SECURE=True)
+   - Configure firewall to restrict access
+   - Use strong passwords for all accounts
+
+5. **Data Validation**
+   - All inputs are validated on both client and server side
+   - Blood pressure: 50-250 / 30-160 mmHg
+   - Temperature: 32-45°C
+   - Foreign key constraints enabled for data integrity
 
 ## Tech Stack
 
-- Python/Flask
-- SQLite
+- Python/Flask 3.0+
+- SQLite with foreign key constraints
 - Tailwind CSS
 - Font Awesome icons
+- HTML5 form validation
 
 ## Project Structure
 

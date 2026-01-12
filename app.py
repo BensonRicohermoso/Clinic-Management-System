@@ -10,11 +10,20 @@ from models.database import init_db, get_db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nursing-cms-secret-key-2026')
-app.config['DATABASE'] = 'clinical_management.db'
+
+# Validate critical environment variables
+if not os.environ.get('SECRET_KEY'):
+    print("WARNING: Using default SECRET_KEY. Set SECRET_KEY environment variable in production!")
+
+app.config['DATABASE'] = os.environ.get('DATABASE_PATH', 'clinical_management.db')
 
 # init db
 with app.app_context():
     init_db()
+    
+# Register database cleanup
+from models.database import close_db
+app.teardown_appcontext(close_db)
 
 # login required decorator
 def login_required(f):
@@ -114,11 +123,11 @@ def add_patient():
     try:
         db = get_db()
         db.execute(
-            '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address)
-               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address, payment_method)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
             (request.form['name'], request.form['date_of_birth'], request.form['gender'],
              request.form['blood_type'], request.form['allergies'],
-             request.form['contact'], request.form['address'])
+             request.form['contact'], request.form['address'], request.form['payment_method'])
         )
         db.commit()
         flash('Patient added successfully!', 'success')
@@ -135,11 +144,11 @@ def edit_patient(id):
         db = get_db()
         db.execute(
             '''UPDATE patients 
-               SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?
+               SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?, payment_method=?
                WHERE id=?''',
             (request.form['name'], request.form['date_of_birth'], request.form['gender'],
              request.form['blood_type'], request.form['allergies'],
-             request.form['contact'], request.form['address'], id)
+             request.form['contact'], request.form['address'], request.form['payment_method'], id)
         )
         db.commit()
         flash('Patient updated successfully!', 'success')
@@ -178,18 +187,23 @@ def vitals():
 @app.route('/vitals/add', methods=['POST'])
 @login_required
 def add_vitals():
-    db = get_db()
-    db.execute(
-        '''INSERT INTO vitals (patient_id, blood_pressure, heart_rate, temperature, 
-           respiratory_rate, oxygen_saturation, notes, recorded_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-        (request.form['patient_id'], request.form['blood_pressure'],
-         request.form['heart_rate'], request.form['temperature'],
-         request.form['respiratory_rate'], request.form.get('oxygen_saturation'),
-         request.form.get('notes'), session['username'])
-    )
-    db.commit()
-    flash('Vital signs recorded successfully!', 'success')
+    try:
+        db = get_db()
+        db.execute(
+            '''INSERT INTO vitals (patient_id, blood_pressure, heart_rate, temperature, 
+               respiratory_rate, oxygen_saturation, notes, recorded_by)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (request.form['patient_id'], request.form['blood_pressure'],
+             request.form['heart_rate'], request.form['temperature'],
+             request.form['respiratory_rate'], request.form.get('oxygen_saturation'),
+             request.form.get('notes'), session['username'])
+        )
+        db.commit()
+        flash('Vital signs recorded successfully!', 'success')
+    except KeyError as e:
+        flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
+    except Exception as e:
+        flash(f'Error recording vitals: {str(e)}', 'error')
     return redirect(url_for('vitals'))
 
 # Appointments
@@ -213,9 +227,14 @@ def appointments():
 def add_appointment():
     appt_date = request.form['date']
     today = datetime.now().strftime('%Y-%m-%d')
+    max_date = (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d')
     
     if appt_date < today:
         flash('Cannot schedule appointments in the past!', 'error')
+        return redirect(url_for('appointments'))
+    
+    if appt_date > max_date:
+        flash('Cannot schedule appointments more than 1 year in advance!', 'error')
         return redirect(url_for('appointments'))
     
     db = get_db()
@@ -266,21 +285,25 @@ def consultations():
 @login_required
 def add_to_consultation(patient_id):
     db = get_db()
-    # Check if patient already in consultation queue
-    existing = db.execute(
-        'SELECT * FROM consultations WHERE patient_id = ? AND status = "waiting"',
-        (patient_id,)
-    ).fetchone()
-    
-    if existing:
-        flash('Patient is already in consultation queue!', 'warning')
-    else:
+    try:
+        # Atomic check-insert using UNIQUE constraint handling
         db.execute(
             'INSERT INTO consultations (patient_id, added_by) VALUES (?, ?)',
             (patient_id, session['username'])
         )
         db.commit()
         flash('Patient added to consultation queue!', 'success')
+    except Exception as e:
+        db.rollback()
+        # Check if it's a duplicate entry
+        existing = db.execute(
+            'SELECT * FROM consultations WHERE patient_id = ? AND status = "waiting"',
+            (patient_id,)
+        ).fetchone()
+        if existing:
+            flash('Patient is already in consultation queue!', 'warning')
+        else:
+            flash(f'Error adding patient to queue: {str(e)}', 'error')
     return redirect(url_for('patients'))
 
 @app.route('/consultations/remove/<int:id>')
