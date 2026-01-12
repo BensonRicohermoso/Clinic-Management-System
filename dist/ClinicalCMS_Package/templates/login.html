@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - eCare Medical Records</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/cefi-logo-small.png') }}">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .pulse-animation { animation: pulse 2s infinite; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-700 via-green-500 to-white min-h-screen flex items-center justify-center p-4 relative">
+        <!-- CEFI Logo Watermark -->
+    <div class="fixed left-8 top-1/2 transform -translate-y-1/2 opacity-15 pointer-events-none z-0">
+        <img src="{{ url_for('static', filename='images/cefi-logo.png') }}" alt="CEFI Logo" class="logo-watermark w-[500px] h-[500px] object-contain">
+    </div>
+    
+    <!-- Heart Logo Watermark -->
+    <div class="fixed right-8 top-1/2 transform -translate-y-1/2 opacity-15 pointer-events-none z-0">
+        <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Heart Logo" class="logo-watermark w-[500px] h-[500px] object-contain">
+    </div>
+    
+        <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="fixed top-4 right-4 z-50 space-y-2">
+                {% for category, message in messages %}
+                    <div class="fade-in rounded-lg p-4 shadow-lg {% if category == 'success' %}bg-green-500{% elif category == 'error' %}bg-red-500{% elif category == 'warning' %}bg-yellow-500{% else %}bg-blue-500{% endif %} text-white max-w-md">
+                        <div class="flex items-center">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mr-3"></i>
+                            {{ message }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Login Card -->
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-md w-full fade-in relative z-10">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-700 to-green-600 px-8 py-6">
+            <div class="flex items-center justify-center mb-2">
+                <div class="bg-white rounded-full p-3 pulse-animation">
+                    <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Heart Logo" class="w-16 h-16 object-contain">
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold text-white text-center">eCare Medical Records</h1>
+            <p class="text-white text-center mt-2 opacity-90">Nursing Management System</p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="px-8 py-8">
+            <form method="POST" action="{{ url_for('login') }}">
+                <!-- Username Field -->
+                <div class="mb-6">
+                    <label for="username" class="block text-gray-700 text-sm font-semibold mb-2">
+                        <i class="fas fa-user mr-2 text-green-700"></i>Username
+                    </label>
+                    <input type="text" 
+                           id="username" 
+                           name="username" 
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                           placeholder="Enter your username"
+                           autocomplete="username">
+                </div>
+
+                <!-- Password Field -->
+                <div class="mb-6">
+                    <label for="password" class="block text-gray-700 text-sm font-semibold mb-2">
+                        <i class="fas fa-lock mr-2 text-green-700"></i>Password
+                    </label>
+                    <input type="password" 
+                           id="password" 
+                           name="password" 
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                           placeholder="Enter your password"
+                           autocomplete="current-password">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        class="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="bg-gray-50 px-8 py-4 border-t">
+            <div class="text-center">
+                <p class="text-gray-600 text-sm">
+                    <i class="fas fa-info-circle mr-1"></i>Default credentials:
+                </p>
+                <p class="text-gray-800 text-sm font-medium mt-1">
+                    Username: <span class="font-mono bg-gray-200 px-2 py-1 rounded">admin</span> | 
+                    Password: <span class="font-mono bg-gray-200 px-2 py-1 rounded">admin123</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="bg-gray-100 px-8 py-4">
+            <p class="text-center text-gray-500 text-xs">
+                Secure Healthcare Platform
+            </p>
+            <p class="text-center text-gray-400 text-xs mt-1">
+                2026 Clinical Management System
+            </p>
+        </div>
+    </div>
+
+    <!-- Background Decorative Elements -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl"></div>
+    </div>
+</body>
+</html>

@@ -1,10 +1,5 @@
-"""
-Clinical Management System - Main Application
-A Flask-based nursing management system for patient tracking and vital signs monitoring.
-
-Author: Senior Full-Stack Developer
-Date: January 2026
-"""
+# Clinical Management System
+# Patient tracking and vitals monitoring for nursing staff
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -13,20 +8,16 @@ from datetime import datetime, timedelta
 import os
 from models.database import init_db, get_db
 
-# Initialize Flask application
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'nursing-cms-secret-key-2026')
 app.config['DATABASE'] = 'clinical_management.db'
 
-# Initialize database on first run
+# init db
 with app.app_context():
     init_db()
 
-# ============================================================================
-# AUTHENTICATION DECORATOR
-# ============================================================================
+# login required decorator
 def login_required(f):
-    """Decorator to protect routes that require authentication"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
@@ -35,19 +26,14 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ============================================================================
-# AUTHENTICATION ROUTES
-# ============================================================================
 @app.route('/')
 def index():
-    """Redirect to dashboard if logged in, otherwise to login"""
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Handle user login"""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -61,13 +47,7 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
-            
-            # Customize welcome message based on username
-            if user['username'] == 'nurse1':
-                flash(f'Welcome back, Nurse!', 'success')
-            else:
-                flash(f'Welcome back, {user["full_name"]}!', 'success')
-            
+            flash(f'Welcome back, {user["full_name"]}!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'error')
@@ -76,36 +56,30 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Handle user logout"""
     session.clear()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('login'))
 
-# ============================================================================
-# DASHBOARD
-# ============================================================================
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Main dashboard with statistics and overview"""
     db = get_db()
     
-    # Get total patients
+    # get stats
     total_patients = db.execute('SELECT COUNT(*) as count FROM patients').fetchone()['count']
     
-    # Get today's appointments
     today = datetime.now().strftime('%Y-%m-%d')
     today_appointments = db.execute(
         'SELECT COUNT(*) as count FROM appointments WHERE date = ?', (today,)
     ).fetchone()['count']
     
-    # Get recent vitals count (last 24 hours)
+    # last 24hrs vitals
     yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
     recent_vitals = db.execute(
         'SELECT COUNT(*) as count FROM vitals WHERE recorded_at > ?', (yesterday,)
     ).fetchone()['count']
     
-    # Get upcoming appointments
+
     upcoming = db.execute(
         '''SELECT a.*, p.name as patient_name 
            FROM appointments a
@@ -123,13 +97,10 @@ def dashboard():
     
     return render_template('dashboard.html', stats=stats, upcoming=upcoming)
 
-# ============================================================================
-# PATIENT MANAGEMENT
-# ============================================================================
+# Patient routes
 @app.route('/patients')
 @login_required
 def patients():
-    """List all patients"""
     db = get_db()
     patients_list = db.execute(
         'SELECT * FROM patients ORDER BY name'
@@ -139,7 +110,6 @@ def patients():
 @app.route('/patients/add', methods=['POST'])
 @login_required
 def add_patient():
-    """Add a new patient"""
     db = get_db()
     db.execute(
         '''INSERT INTO patients (name, age, gender, blood_type, allergies, contact, address)
@@ -155,7 +125,6 @@ def add_patient():
 @app.route('/patients/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_patient(id):
-    """Update patient information"""
     db = get_db()
     db.execute(
         '''UPDATE patients 
@@ -172,24 +141,19 @@ def edit_patient(id):
 @app.route('/patients/delete/<int:id>')
 @login_required
 def delete_patient(id):
-    """Delete a patient"""
     db = get_db()
     db.execute('DELETE FROM patients WHERE id=?', (id,))
     db.commit()
     flash('Patient deleted successfully!', 'info')
     return redirect(url_for('patients'))
 
-# ============================================================================
-# NURSING/VITALS MODULE
-# ============================================================================
+# Vitals
 @app.route('/vitals')
 @login_required
 def vitals():
-    """Vitals recording page"""
     db = get_db()
     patients_list = db.execute('SELECT * FROM patients ORDER BY name').fetchall()
     
-    # Get recent vitals
     recent_vitals = db.execute(
         '''SELECT v.*, p.name as patient_name
            FROM vitals v
@@ -203,7 +167,6 @@ def vitals():
 @app.route('/vitals/add', methods=['POST'])
 @login_required
 def add_vitals():
-    """Record new vital signs"""
     db = get_db()
     db.execute(
         '''INSERT INTO vitals (patient_id, blood_pressure, heart_rate, temperature, 
@@ -218,17 +181,13 @@ def add_vitals():
     flash('Vital signs recorded successfully!', 'success')
     return redirect(url_for('vitals'))
 
-# ============================================================================
-# APPOINTMENTS
-# ============================================================================
+# Appointments
 @app.route('/appointments')
 @login_required
 def appointments():
-    """Appointment scheduler"""
     db = get_db()
     patients_list = db.execute('SELECT * FROM patients ORDER BY name').fetchall()
     
-    # Get all appointments
     all_appointments = db.execute(
         '''SELECT a.*, p.name as patient_name
            FROM appointments a
@@ -241,7 +200,6 @@ def appointments():
 @app.route('/appointments/add', methods=['POST'])
 @login_required
 def add_appointment():
-    """Schedule a new appointment"""
     db = get_db()
     db.execute(
         '''INSERT INTO appointments (patient_id, date, time, reason, status)
@@ -256,7 +214,6 @@ def add_appointment():
 @app.route('/appointments/update/<int:id>/<status>')
 @login_required
 def update_appointment_status(id, status):
-    """Update appointment status"""
     db = get_db()
     db.execute('UPDATE appointments SET status=? WHERE id=?', (status, id))
     db.commit()
@@ -266,27 +223,19 @@ def update_appointment_status(id, status):
 @app.route('/appointments/delete/<int:id>')
 @login_required
 def delete_appointment(id):
-    """Delete an appointment"""
     db = get_db()
     db.execute('DELETE FROM appointments WHERE id=?', (id,))
     db.commit()
     flash('Appointment deleted successfully!', 'info')
     return redirect(url_for('appointments'))
 
-# ============================================================================
-# API ENDPOINTS (For future expansion)
-# ============================================================================
+# TODO: add more api endpoints later
 @app.route('/api/patients')
 @login_required
 def api_patients():
-    """API endpoint to get all patients"""
     db = get_db()
     patients_list = db.execute('SELECT * FROM patients').fetchall()
     return jsonify([dict(p) for p in patients_list])
 
-# ============================================================================
-# MAIN ENTRY POINT
-# ============================================================================
 if __name__ == '__main__':
-    # For development only - use a proper WSGI server in production
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,23 +1,11 @@
-"""
-Clinical Management System - Database Models and Schema
-SQLite database initialization and connection management.
-
-Tables:
-- users: Staff/Nurse authentication
-- patients: Patient records
-- vitals: Vital signs tracking
-- appointments: Appointment scheduling
-"""
+# Database setup and connection
 
 import sqlite3
 from flask import g, current_app
 from werkzeug.security import generate_password_hash
 
 def get_db():
-    """
-    Get database connection. Creates a new connection if one doesn't exist
-    in the application context.
-    """
+    # get or create db connection
     if 'db' not in g:
         g.db = sqlite3.connect(
             current_app.config['DATABASE'],
@@ -27,16 +15,12 @@ def get_db():
     return g.db
 
 def close_db(e=None):
-    """Close database connection"""
     db = g.pop('db', None)
     if db is not None:
         db.close()
 
 def init_db():
-    """
-    Initialize the database with tables and default data.
-    Creates all necessary tables and adds a default admin user.
-    """
+    # creates tables and default users
     db = get_db()
     
     # Create users table
@@ -122,10 +106,7 @@ def init_db():
     db.commit()
 
 def seed_sample_data():
-    """
-    Seed the database with sample data for testing.
-    This is optional and can be called separately.
-    """
+    # adds test patients if db is empty
     db = get_db()
     
     # Check if sample data already exists
@@ -151,7 +132,5 @@ def seed_sample_data():
         db.commit()
         print("Sample patient data added successfully!")
 
-# Register database teardown
 def init_app(app):
-    """Register database functions with Flask app"""
     app.teardown_appcontext(close_db)

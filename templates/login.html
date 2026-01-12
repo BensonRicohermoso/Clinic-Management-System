@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - eCare Medical Records</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/cefi-logo-small.png') }}">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -23,12 +26,6 @@
             50% { transform: scale(1.05); }
         }
         .pulse-animation { animation: pulse 2s infinite; }
-        
-        /* Improve image rendering quality */
-        .logo-watermark {
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-green-700 via-green-500 to-white min-h-screen flex items-center justify-center p-4 relative">
@@ -126,10 +123,10 @@
         <!-- Footer -->
         <div class="bg-gray-100 px-8 py-4">
             <p class="text-center text-gray-500 text-xs">
-                <i class="fas fa-shield-alt mr-1"></i>Secure Healthcare Management Platform
+                Secure Healthcare Platform
             </p>
             <p class="text-center text-gray-400 text-xs mt-1">
-                &copy; 2026 Clinical Management System
+                2026 Clinical Management System
             </p>
         </div>
     </div>

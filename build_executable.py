@@ -1,8 +1,4 @@
-"""
-Build Script for Creating Standalone Executable
-This script automates the process of creating a distributable executable
-using PyInstaller for the Clinical Management System.
-"""
+# Script to build standalone executable with PyInstaller
 
 import os
 import sys
@@ -10,35 +6,26 @@ import subprocess
 import shutil
 from pathlib import Path
 
-def print_header(text):
-    """Print formatted header"""
-    print("\n" + "=" * 70)
-    print(f"  {text}")
-    print("=" * 70)
-
 def check_pyinstaller():
-    """Check if PyInstaller is installed"""
     try:
         import PyInstaller
-        print("✓ PyInstaller is installed")
+        print("PyInstaller installed")
         return True
     except ImportError:
-        print("✗ PyInstaller is not installed")
+        print("PyInstaller not found")
         return False
 
 def install_pyinstaller():
-    """Install PyInstaller"""
-    print("→ Installing PyInstaller...")
+    print("Installing PyInstaller...")
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-        print("✓ PyInstaller installed successfully")
+        print("PyInstaller installed")
         return True
     except subprocess.CalledProcessError:
-        print("✗ Failed to install PyInstaller")
+        print("Failed to install PyInstaller")
         return False
 
 def create_spec_file():
-    """Create PyInstaller spec file with custom configuration"""
     spec_content = """
 # -*- mode: python ; coding: utf-8 -*-
 
@@ -50,6 +37,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('templates', 'templates'),
+        ('static', 'static'),
         ('models', 'models'),
     ],
     hiddenimports=[
@@ -96,14 +84,12 @@ exe = EXE(
     
     with open('ClinicalCMS.spec', 'w') as f:
         f.write(spec_content)
-    print("✓ Spec file created: ClinicalCMS.spec")
+    print("Created spec file")
 
 def build_executable():
-    """Build the executable using PyInstaller"""
-    print("→ Building executable (this may take a few minutes)...")
+    print("Building executable (this takes a few minutes)...")
     
     try:
-        # Use the spec file for build
         subprocess.check_call([
             sys.executable, 
             "-m", 
@@ -112,15 +98,14 @@ def build_executable():
             "--noconfirm",
             "ClinicalCMS.spec"
         ])
-        print("✓ Build completed successfully")
+        print("Build complete")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ Build failed: {e}")
+        print(f"Build failed: {e}")
         return False
 
 def create_distribution_package():
-    """Create a distribution package with executable and necessary files"""
-    print("→ Creating distribution package...")
+    print("Creating distribution package...")
     
     dist_dir = Path("dist/ClinicalCMS_Package")
     
@@ -134,18 +119,22 @@ def create_distribution_package():
     src_exe = Path("dist") / exe_name
     if src_exe.exists():
         shutil.copy2(src_exe, dist_dir / exe_name)
-        print(f"  ✓ Copied executable: {exe_name}")
+        print(f"Copied {exe_name}")
     
-    # Copy README
     if Path("README.md").exists():
         shutil.copy2("README.md", dist_dir / "README.md")
-        print("  ✓ Copied README.md")
+        print("Copied README")
     
-    # Create templates directory in package
     templates_dir = dist_dir / "templates"
     if Path("templates").exists():
         shutil.copytree("templates", templates_dir)
-        print("  ✓ Copied templates folder")
+        print("Copied templates")
+    
+    # Copy static folder with images
+    static_dir = dist_dir / "static"
+    if Path("static").exists():
+        shutil.copytree("static", static_dir)
+        print("Copied static folder")
     
     # Create a startup script
     if sys.platform == "win32":
@@ -155,7 +144,7 @@ def create_distribution_package():
             f.write('echo Starting Clinical Management System...\n')
             f.write(f'{exe_name}\n')
             f.write('pause\n')
-        print("  ✓ Created START_CMS.bat")
+        print("Created START_CMS.bat")
     else:
         startup_script = dist_dir / "start_cms.sh"
         with open(startup_script, 'w') as f:
@@ -163,7 +152,10 @@ def create_distribution_package():
             f.write('echo "Starting Clinical Management System..."\n')
             f.write(f'./{exe_name}\n')
         os.chmod(startup_script, 0o755)
-        print("  ✓ Created start_cms.sh")
+        print("Created start_cms.sh")
+    
+    print(f"Package created in {dist_dir}")
+    return dist_dir
     
     # Create quick start guide
     quick_start = dist_dir / "QUICK_START.txt"
@@ -191,8 +183,7 @@ def create_distribution_package():
     return dist_dir
 
 def cleanup():
-    """Clean up build artifacts"""
-    print("→ Cleaning up build artifacts...")
+    print("Cleaning up...")
     
     dirs_to_remove = ['build', '__pycache__']
     files_to_remove = ['ClinicalCMS.spec']
@@ -200,16 +191,14 @@ def cleanup():
     for dir_name in dirs_to_remove:
         if os.path.exists(dir_name):
             shutil.rmtree(dir_name)
-            print(f"  ✓ Removed: {dir_name}")
     
     for file_name in files_to_remove:
         if os.path.exists(file_name):
             os.remove(file_name)
-            print(f"  ✓ Removed: {file_name}")
 
 def main():
-    """Main build process"""
-    print_header("Clinical Management System - Build Script")
+    print("Clinical Management System - Build Script")
+    print()
     
     # Check Python version
     if sys.version_info < (3, 8):
@@ -217,45 +206,29 @@ def main():
         sys.exit(1)
     print(f"✓ Python version: {sys.version.split()[0]}")
     
-    # Check/Install PyInstaller
     if not check_pyinstaller():
         if not install_pyinstaller():
-            print("\n✗ Cannot proceed without PyInstaller")
+            print("Cannot build without PyInstaller")
             sys.exit(1)
     
-    # Create spec file
     create_spec_file()
     
-    # Build executable
     if not build_executable():
-        print("\n✗ Build process failed")
+        print("Build failed")
         sys.exit(1)
     
-    # Create distribution package
     dist_dir = create_distribution_package()
-    
-    # Cleanup
     cleanup()
     
-    # Success message
-    print_header("BUILD COMPLETED SUCCESSFULLY!")
-    print(f"\n📦 Distribution package location:")
-    print(f"   {dist_dir.absolute()}")
-    print(f"\n📋 Next steps:")
-    print(f"   1. Navigate to: {dist_dir}")
-    if sys.platform == "win32":
-        print(f"   2. Run: START_CMS.bat")
-    else:
-        print(f"   2. Run: ./start_cms.sh")
-    print(f"   3. Open browser: http://localhost:5000")
-    print(f"\n✅ Ready for distribution!\n")
+    print("\nBuild complete!")
+    print(f"Package location: {dist_dir.absolute()}")
 
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n✗ Build cancelled by user")
+        print("\nBuild cancelled")
         sys.exit(1)
     except Exception as e:
-        print(f"\n\n✗ Unexpected error: {e}")
+        print(f"\nError: {e}")
         sys.exit(1)
