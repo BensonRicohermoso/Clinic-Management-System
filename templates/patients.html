@@ -17,7 +17,17 @@
     <!-- Patients List -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="px-6 py-4 bg-gray-50 border-b">
-            <h2 class="text-lg font-semibold text-gray-900">All Patients</h2>
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">All Patients</h2>
+                <div class="relative">
+                    <input type="text" 
+                           id="searchPatient" 
+                           placeholder="Search patients..." 
+                           onkeyup="searchPatients()"
+                           class="w-64 px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
         </div>
         
         {% if patients %}
@@ -26,6 +36,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Birth</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blood Type</th>
@@ -33,7 +44,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody id="patientsTableBody" class="bg-white divide-y divide-gray-200">
                     {% for patient in patients %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -49,7 +60,10 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ patient.age }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ patient.date_of_birth }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span class="calculate-age" data-dob="{{ patient.date_of_birth }}"></span>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {% if patient.gender == 'Male' %}
                             <i class="fas fa-mars text-blue-600"></i>
@@ -71,7 +85,7 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button onclick='openEditPatientModal({{ patient.id }}, `{{ patient.name }}`, {{ patient.age }}, `{{ patient.gender }}`, `{{ patient.blood_type }}`, `{{ patient.allergies }}`, `{{ patient.contact }}`, `{{ patient.address }}`)' 
+                            <button onclick='openEditPatientModal({{ patient.id }}, `{{ patient.name }}`, `{{ patient.date_of_birth }}`, `{{ patient.gender }}`, `{{ patient.blood_type }}`, `{{ patient.allergies }}`, `{{ patient.contact }}`, `{{ patient.address }}`)' 
                                     class="text-blue-600 hover:text-blue-900 mr-3"
                                     title="Edit Patient"
                                     aria-label="Edit patient {{ patient.name }}">
@@ -118,8 +132,8 @@
                     <input type="text" name="name" id="add_name" required placeholder="Enter full name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500">
                 </div>
                 <div>
-                    <label for="add_age" class="block text-sm font-medium text-gray-700 mb-1">Age *</label>
-                    <input type="number" name="age" id="add_age" required min="0" max="150" placeholder="Age" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label for="add_date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" id="add_date_of_birth" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label for="add_gender" class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
@@ -187,8 +201,8 @@
                     <input type="text" name="name" id="edit_name" required placeholder="Enter full name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label for="edit_age" class="block text-sm font-medium text-gray-700 mb-1">Age *</label>
-                    <input type="number" name="age" id="edit_age" required min="0" max="150" placeholder="Age" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label for="edit_date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" id="edit_date_of_birth" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label for="edit_gender" class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
@@ -240,6 +254,57 @@
 
 {% block scripts %}
 <script>
+    // Calculate age from date of birth
+    function calculateAge(dob) {
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+    
+    // Calculate and display ages on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const ageElements = document.querySelectorAll('.calculate-age');
+        ageElements.forEach(element => {
+            const dob = element.getAttribute('data-dob');
+            if (dob) {
+                element.textContent = calculateAge(dob) + ' yrs';
+            }
+        });
+    });
+    
+    function searchPatients() {
+        const input = document.getElementById('searchPatient');
+        const filter = input.value.toLowerCase();
+        const tbody = document.getElementById('patientsTableBody');
+        const rows = tbody.getElementsByTagName('tr');
+        
+        let visibleCount = 0;
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const name = row.cells[0].textContent.toLowerCase();
+            const dob = row.cells[1].textContent.toLowerCase();
+            const age = row.cells[2].textContent.toLowerCase();
+            const gender = row.cells[3].textContent.toLowerCase();
+            const bloodType = row.cells[4].textContent.toLowerCase();
+            const contact = row.cells[5].textContent.toLowerCase();
+            
+            if (name.includes(filter) || dob.includes(filter) || age.includes(filter) || 
+                gender.includes(filter) || bloodType.includes(filter) || 
+                contact.includes(filter)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
     function openAddPatientModal() {
         document.getElementById('addPatientModal').classList.remove('hidden');
     }
@@ -248,10 +313,10 @@
         document.getElementById('addPatientModal').classList.add('hidden');
     }
     
-    function openEditPatientModal(id, name, age, gender, blood_type, allergies, contact, address) {
+    function openEditPatientModal(id, name, date_of_birth, gender, blood_type, allergies, contact, address) {
         document.getElementById('editPatientForm').action = `/patients/edit/${id}`;
         document.getElementById('edit_name').value = name;
-        document.getElementById('edit_age').value = age;
+        document.getElementById('edit_date_of_birth').value = date_of_birth;
         document.getElementById('edit_gender').value = gender;
         document.getElementById('edit_blood_type').value = blood_type || '';
         document.getElementById('edit_allergies').value = allergies || '';

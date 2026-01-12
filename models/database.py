@@ -40,7 +40,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            age INTEGER NOT NULL,
+            date_of_birth TEXT NOT NULL,
             gender TEXT NOT NULL,
             blood_type TEXT,
             allergies TEXT,
@@ -115,16 +115,16 @@ def seed_sample_data():
     if patient_count == 0:
         # Add sample patients
         sample_patients = [
-            ('John Smith', 45, 'Male', 'O+', 'Penicillin', '555-0101', '123 Main St'),
-            ('Mary Johnson', 62, 'Female', 'A+', 'None', '555-0102', '456 Oak Ave'),
-            ('Robert Brown', 38, 'Male', 'B-', 'Aspirin', '555-0103', '789 Pine Rd'),
-            ('Patricia Davis', 55, 'Female', 'AB+', 'Latex', '555-0104', '321 Elm St'),
-            ('Michael Wilson', 71, 'Male', 'O-', 'Sulfa drugs', '555-0105', '654 Maple Dr')
+            ('John Smith', '1980-03-15', 'Male', 'O+', 'Penicillin', '555-0101', '123 Main St'),
+            ('Mary Johnson', '1963-07-22', 'Female', 'A+', 'None', '555-0102', '456 Oak Ave'),
+            ('Robert Brown', '1987-11-08', 'Male', 'B-', 'Aspirin', '555-0103', '789 Pine Rd'),
+            ('Patricia Davis', '1970-05-30', 'Female', 'AB+', 'Latex', '555-0104', '321 Elm St'),
+            ('Michael Wilson', '1954-09-12', 'Male', 'O-', 'Sulfa drugs', '555-0105', '654 Maple Dr')
         ]
         
         for patient in sample_patients:
             db.execute(
-                '''INSERT INTO patients (name, age, gender, blood_type, allergies, contact, address)
+                '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address)
                    VALUES (?, ?, ?, ?, ?, ?, ?)''',
                 patient
             )

@@ -117,7 +117,7 @@
                 <select name="patient_id" id="vitals_patient_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500">
                     <option value="">Choose a patient...</option>
                     {% for patient in patients %}
-                    <option value="{{ patient.id }}">{{ patient.name }} (Age: {{ patient.age }}, {{ patient.gender }})</option>
+                    <option value="{{ patient.id }}">{{ patient.name }} (DOB: {{ patient.date_of_birth }}, {{ patient.gender }})</option>
                     {% endfor %}
                 </select>
             </div>

@@ -110,16 +110,21 @@ def patients():
 @app.route('/patients/add', methods=['POST'])
 @login_required
 def add_patient():
-    db = get_db()
-    db.execute(
-        '''INSERT INTO patients (name, age, gender, blood_type, allergies, contact, address)
-           VALUES (?, ?, ?, ?, ?, ?, ?)''',
-        (request.form['name'], request.form['age'], request.form['gender'],
-         request.form['blood_type'], request.form['allergies'],
-         request.form['contact'], request.form['address'])
-    )
-    db.commit()
-    flash('Patient added successfully!', 'success')
+    try:
+        db = get_db()
+        db.execute(
+            '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address)
+               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (request.form['name'], request.form['date_of_birth'], request.form['gender'],
+             request.form['blood_type'], request.form['allergies'],
+             request.form['contact'], request.form['address'])
+        )
+        db.commit()
+        flash('Patient added successfully!', 'success')
+    except KeyError as e:
+        flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
+    except Exception as e:
+        flash(f'Error adding patient: {str(e)}', 'error')
     return redirect(url_for('patients'))
 
 @app.route('/patients/edit/<int:id>', methods=['POST'])
@@ -128,9 +133,9 @@ def edit_patient(id):
     db = get_db()
     db.execute(
         '''UPDATE patients 
-           SET name=?, age=?, gender=?, blood_type=?, allergies=?, contact=?, address=?
+           SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?
            WHERE id=?''',
-        (request.form['name'], request.form['age'], request.form['gender'],
+        (request.form['name'], request.form['date_of_birth'], request.form['gender'],
          request.form['blood_type'], request.form['allergies'],
          request.form['contact'], request.form['address'], id)
     )
