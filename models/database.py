@@ -94,8 +94,55 @@ def init_db():
             status TEXT DEFAULT 'waiting',
             added_by TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE,
-            UNIQUE(patient_id, status)
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create exams table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS exams (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            patient_id INTEGER NOT NULL,
+            presenting_complaint TEXT,
+            history_of_complaint TEXT,
+            random_blood_sugar INTEGER DEFAULT 0,
+            fasting_blood_sugar INTEGER DEFAULT 0,
+            liver_function INTEGER DEFAULT 0,
+            full_blood_count INTEGER DEFAULT 0,
+            lipid_profile INTEGER DEFAULT 0,
+            kidney_function INTEGER DEFAULT 0,
+            thyroid_function INTEGER DEFAULT 0,
+            urinalysis INTEGER DEFAULT 0,
+            stool_examination INTEGER DEFAULT 0,
+            chest_xray INTEGER DEFAULT 0,
+            ecg INTEGER DEFAULT 0,
+            ultrasound INTEGER DEFAULT 0,
+            recommend_diagnosis INTEGER DEFAULT 0,
+            clinical_details TEXT,
+            status TEXT DEFAULT 'pending',
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (consultation_id) REFERENCES consultations (id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create laboratory table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS laboratory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exam_id INTEGER NOT NULL,
+            patient_id INTEGER NOT NULL,
+            test_name TEXT NOT NULL,
+            test_result_image TEXT,
+            clinical_details TEXT,
+            general_comments TEXT,
+            status TEXT DEFAULT 'in_lab',
+            processed_by TEXT,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (exam_id) REFERENCES exams (id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
         )
     ''')
     
@@ -105,6 +152,10 @@ def init_db():
     db.execute('CREATE INDEX IF NOT EXISTS idx_consultations_patient_id ON consultations(patient_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultations(status)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_exams_patient_id ON exams(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_exams_consultation_id ON exams(consultation_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_laboratory_exam_id ON laboratory(exam_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_laboratory_patient_id ON laboratory(patient_id)')
     
     # Check if default admin user exists
     admin = db.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
