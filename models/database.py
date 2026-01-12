@@ -12,6 +12,8 @@ def get_db():
             detect_types=sqlite3.PARSE_DECLTYPES
         )
         g.db.row_factory = sqlite3.Row
+        # Enable foreign key constraints for CASCADE deletes
+        g.db.execute('PRAGMA foreign_keys = ON')
     return g.db
 
 def close_db(e=None):
@@ -78,6 +80,18 @@ def init_db():
             reason TEXT NOT NULL,
             status TEXT DEFAULT 'scheduled',
             notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create consultations table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS consultations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'waiting',
+            added_by TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
         )

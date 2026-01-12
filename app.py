@@ -105,7 +105,8 @@ def patients():
     patients_list = db.execute(
         'SELECT * FROM patients ORDER BY name'
     ).fetchall()
-    return render_template('patients.html', patients=patients_list)
+    today = datetime.now().strftime('%Y-%m-%d')
+    return render_template('patients.html', patients=patients_list, today=today)
 
 @app.route('/patients/add', methods=['POST'])
 @login_required
@@ -130,17 +131,22 @@ def add_patient():
 @app.route('/patients/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_patient(id):
-    db = get_db()
-    db.execute(
-        '''UPDATE patients 
-           SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?
-           WHERE id=?''',
-        (request.form['name'], request.form['date_of_birth'], request.form['gender'],
-         request.form['blood_type'], request.form['allergies'],
-         request.form['contact'], request.form['address'], id)
-    )
-    db.commit()
-    flash('Patient updated successfully!', 'success')
+    try:
+        db = get_db()
+        db.execute(
+            '''UPDATE patients 
+               SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?
+               WHERE id=?''',
+            (request.form['name'], request.form['date_of_birth'], request.form['gender'],
+             request.form['blood_type'], request.form['allergies'],
+             request.form['contact'], request.form['address'], id)
+        )
+        db.commit()
+        flash('Patient updated successfully!', 'success')
+    except KeyError as e:
+        flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
+    except Exception as e:
+        flash(f'Error updating patient: {str(e)}', 'error')
     return redirect(url_for('patients'))
 
 @app.route('/patients/delete/<int:id>')
@@ -205,6 +211,13 @@ def appointments():
 @app.route('/appointments/add', methods=['POST'])
 @login_required
 def add_appointment():
+    appt_date = request.form['date']
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    if appt_date < today:
+        flash('Cannot schedule appointments in the past!', 'error')
+        return redirect(url_for('appointments'))
+    
     db = get_db()
     db.execute(
         '''INSERT INTO appointments (patient_id, date, time, reason, status)
@@ -233,6 +246,90 @@ def delete_appointment(id):
     db.commit()
     flash('Appointment deleted successfully!', 'info')
     return redirect(url_for('appointments'))
+
+# Consultations
+@app.route('/consultations')
+@login_required
+def consultations():
+    db = get_db()
+    consultations_list = db.execute(
+        '''SELECT c.*, p.name, p.date_of_birth, p.gender, p.blood_type, 
+                  p.allergies, p.contact, p.address
+           FROM consultations c
+           JOIN patients p ON c.patient_id = p.id
+           WHERE c.status = 'waiting'
+           ORDER BY c.created_at ASC'''
+    ).fetchall()
+    return render_template('consultations.html', consultations=consultations_list)
+
+@app.route('/consultations/add/<int:patient_id>')
+@login_required
+def add_to_consultation(patient_id):
+    db = get_db()
+    # Check if patient already in consultation queue
+    existing = db.execute(
+        'SELECT * FROM consultations WHERE patient_id = ? AND status = "waiting"',
+        (patient_id,)
+    ).fetchone()
+    
+    if existing:
+        flash('Patient is already in consultation queue!', 'warning')
+    else:
+        db.execute(
+            'INSERT INTO consultations (patient_id, added_by) VALUES (?, ?)',
+            (patient_id, session['username'])
+        )
+        db.commit()
+        flash('Patient added to consultation queue!', 'success')
+    return redirect(url_for('patients'))
+
+@app.route('/consultations/remove/<int:id>')
+@login_required
+def remove_from_consultation(id):
+    db = get_db()
+    db.execute('DELETE FROM consultations WHERE id=?', (id,))
+    db.commit()
+    flash('Patient removed from consultation queue!', 'info')
+    return redirect(url_for('consultations'))
+
+@app.route('/consultations/complete/<int:id>')
+@login_required
+def complete_consultation(id):
+    db = get_db()
+    db.execute('UPDATE consultations SET status="completed" WHERE id=?', (id,))
+    db.commit()
+    flash('Consultation completed!', 'success')
+    return redirect(url_for('consultations'))
+
+@app.route('/api/patient/<int:patient_id>/history')
+@login_required
+def get_patient_history(patient_id):
+    db = get_db()
+    
+    # Get patient info
+    patient = db.execute('SELECT * FROM patients WHERE id=?', (patient_id,)).fetchone()
+    
+    # Get vitals history
+    vitals = db.execute(
+        '''SELECT * FROM vitals 
+           WHERE patient_id=? 
+           ORDER BY recorded_at DESC''',
+        (patient_id,)
+    ).fetchall()
+    
+    # Get appointments history
+    appointments = db.execute(
+        '''SELECT * FROM appointments 
+           WHERE patient_id=? 
+           ORDER BY date DESC, time DESC''',
+        (patient_id,)
+    ).fetchall()
+    
+    return jsonify({
+        'patient': dict(patient) if patient else None,
+        'vitals': [dict(v) for v in vitals],
+        'appointments': [dict(a) for a in appointments]
+    })
 
 # TODO: add more api endpoints later
 @app.route('/api/patients')
