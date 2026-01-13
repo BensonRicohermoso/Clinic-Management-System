@@ -1,0 +1,260 @@
+{% extends "layout.html" %}
+
+{% block title %}Laboratory - Clinical Management System{% endblock %}
+
+{% block content %}
+<div class="slide-in">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-flask mr-3 text-purple-700"></i>Laboratory
+        </h1>
+        <p class="text-gray-600 mt-2">Patients awaiting laboratory tests and results</p>
+    </div>
+
+    <!-- Laboratory Patients List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h2 class="text-lg font-semibold text-gray-900">Pending Laboratory Tests</h2>
+        </div>
+        
+        {% if lab_patients %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Complaints</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tests Requested</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested At</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for patient in lab_patients %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-circle text-purple-400 text-2xl mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ patient.name }}</div>
+                                    <div class="text-xs text-gray-500">{{ patient.gender }}, {{ patient.date_of_birth }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900 max-w-xs truncate" title="{{ patient.presenting_complaint }}">
+                                {{ patient.presenting_complaint }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-1">
+                                {% if patient.random_blood_sugar %}<span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">RBS</span>{% endif %}
+                                {% if patient.fasting_blood_sugar %}<span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">FBS</span>{% endif %}
+                                {% if patient.liver_function %}<span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">LFT</span>{% endif %}
+                                {% if patient.full_blood_count %}<span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">CBC</span>{% endif %}
+                                {% if patient.lipid_profile %}<span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Lipid</span>{% endif %}
+                                {% if patient.kidney_function %}<span class="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">KFT</span>{% endif %}
+                                {% if patient.thyroid_function %}<span class="px-2 py-1 text-xs bg-indigo-100 text-indigo-800 rounded">Thyroid</span>{% endif %}
+                                {% if patient.urinalysis %}<span class="px-2 py-1 text-xs bg-pink-100 text-pink-800 rounded">Urine</span>{% endif %}
+                                {% if patient.stool_examination %}<span class="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">Stool</span>{% endif %}
+                                {% if patient.chest_xray %}<span class="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">X-Ray</span>{% endif %}
+                                {% if patient.ecg %}<span class="px-2 py-1 text-xs bg-teal-100 text-teal-800 rounded">ECG</span>{% endif %}
+                                {% if patient.ultrasound %}<span class="px-2 py-1 text-xs bg-cyan-100 text-cyan-800 rounded">US</span>{% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <i class="far fa-clock mr-1"></i>{{ patient.created_at }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button type="button"
+                                    data-exam-id="{{ patient.exam_id }}"
+                                    data-patient-id="{{ patient.patient_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    data-presenting-complaint="{{ patient.presenting_complaint }}"
+                                    data-history="{{ patient.history_of_complaint }}"
+                                    data-clinical-details="{{ patient.clinical_details }}"
+                                    data-rbs="{{ patient.random_blood_sugar }}"
+                                    data-fbs="{{ patient.fasting_blood_sugar }}"
+                                    data-lft="{{ patient.liver_function }}"
+                                    data-cbc="{{ patient.full_blood_count }}"
+                                    data-lipid="{{ patient.lipid_profile }}"
+                                    data-kft="{{ patient.kidney_function }}"
+                                    data-thyroid="{{ patient.thyroid_function }}"
+                                    data-urine="{{ patient.urinalysis }}"
+                                    data-stool="{{ patient.stool_examination }}"
+                                    data-xray="{{ patient.chest_xray }}"
+                                    data-ecg="{{ patient.ecg }}"
+                                    data-ultrasound="{{ patient.ultrasound }}"
+                                    onclick="openLabResultsModal(this)"
+                                    class="text-purple-600 hover:text-purple-900"
+                                    title="Enter Lab Results">
+                                <i class="fas fa-file-medical-alt text-xl"></i>
+                            </button>
+                            <form method="POST" action="/exams/cancel/{{ patient.exam_id }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to cancel this exam request?');">
+                                <button type="submit" class="text-red-600 hover:text-red-900 ml-2" title="Cancel Exam">
+                                    <i class="fas fa-times-circle text-xl"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12 text-gray-500">
+            <i class="fas fa-flask text-5xl mb-4 opacity-50"></i>
+            <p class="text-lg">No patients in laboratory queue</p>
+            <a href="{{ url_for('consultations') }}" class="text-purple-600 hover:text-purple-800 text-sm font-medium mt-2 inline-block">
+                Go to Consultations <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Lab Results Modal -->
+<div id="labResultsModal" class="hidden fixed inset-0">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full my-8">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-microscope mr-3 text-2xl"></i>Laboratory Test Results
+                </h3>
+                <p class="text-purple-100 text-sm mt-1">Enter test results and upload images</p>
+            </div>
+            
+            <form method="POST" action="/laboratory/submit" enctype="multipart/form-data" id="labResultsForm">
+                <input type="hidden" name="exam_id" id="lab_exam_id">
+                <input type="hidden" name="patient_id" id="lab_patient_id">
+                
+                <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
+                            <i class="fas fa-user-injured mr-2 text-purple-600"></i>Patient: <span id="lab_patient_name_display" class="ml-2 text-purple-600"></span>
+                        </h4>
+                    </div>
+                    
+                    <!-- Patient Complaints Info -->
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                        <h5 class="font-medium text-blue-900 mb-2">Presenting Complaint</h5>
+                        <p id="lab_presenting_complaint" class="text-sm text-blue-800"></p>
+                        
+                        <h5 class="font-medium text-blue-900 mt-3 mb-2">History</h5>
+                        <p id="lab_history" class="text-sm text-blue-800"></p>
+                    </div>
+                    
+                    <!-- Requested Tests with Upload -->
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-vial mr-2 text-purple-600"></i>Requested Tests
+                        </h4>
+                        <div id="requested_tests_container" class="space-y-3">
+                            <!-- Tests will be dynamically added here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Clinical Details (Read-only from consultation) -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-notes-medical mr-1"></i>Clinical Details (from Consultation)
+                        </label>
+                        <textarea id="lab_clinical_details_display" 
+                                  rows="3" 
+                                  readonly
+                                  class="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg"></textarea>
+                    </div>
+                    
+                    <!-- General Comments -->
+                    <div class="mb-4">
+                        <label for="general_comments" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-comment-dots mr-1"></i>General Laboratory Comments
+                        </label>
+                        <textarea name="general_comments" 
+                                  id="general_comments" 
+                                  rows="3" 
+                                  placeholder="Enter any additional comments or observations..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" onclick="closeLabResultsModal()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-check mr-2"></i>Submit Results
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const testNames = {
+        'rbs': 'Random Blood Sugar',
+        'fbs': 'Fasting Blood Sugar',
+        'lft': 'Liver Function Test',
+        'cbc': 'Complete Blood Count',
+        'lipid': 'Lipid Profile',
+        'kft': 'Kidney Function Test',
+        'thyroid': 'Thyroid Function Test',
+        'urine': 'Urinalysis',
+        'stool': 'Stool Examination',
+        'xray': 'Chest X-Ray',
+        'ecg': 'Electrocardiogram',
+        'ultrasound': 'Ultrasound'
+    };
+    
+    function openLabResultsModal(button) {
+        const data = button.dataset;
+        
+        document.getElementById('lab_exam_id').value = data.examId;
+        document.getElementById('lab_patient_id').value = data.patientId;
+        document.getElementById('lab_patient_name_display').textContent = data.patientName;
+        document.getElementById('lab_presenting_complaint').textContent = data.presentingComplaint;
+        document.getElementById('lab_history').textContent = data.history;
+        document.getElementById('lab_clinical_details_display').value = data.clinicalDetails || 'No clinical details provided';
+        
+        // Build requested tests list
+        const container = document.getElementById('requested_tests_container');
+        container.innerHTML = '';
+        
+        const tests = ['rbs', 'fbs', 'lft', 'cbc', 'lipid', 'kft', 'thyroid', 'urine', 'stool', 'xray', 'ecg', 'ultrasound'];
+        
+        tests.forEach(test => {
+            if (data[test] === '1') {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200';
+                testDiv.innerHTML = `
+                    <div class="flex-1">
+                        <label class="font-medium text-gray-900">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i>${testNames[test]}
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="file" 
+                               name="test_${test}_image" 
+                               accept="image/*"
+                               class="text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200">
+                    </div>
+                `;
+                container.appendChild(testDiv);
+            }
+        });
+        
+        document.getElementById('labResultsModal').classList.remove('hidden');
+    }
+    
+    function closeLabResultsModal() {
+        document.getElementById('labResultsModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,1417 @@
+{% extends "layout.html" %}
+
+{% block title %}Consultations - Clinical Management System{% endblock %}
+
+{% block content %}
+<div class="slide-in">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-user-md mr-3 text-green-700"></i>Consultation Queue
+        </h1>
+        <p class="text-gray-600 mt-2">Patients waiting for consultation</p>
+    </div>
+
+    <!-- Consultations List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h2 class="text-lg font-semibold text-gray-900">Waiting Patients</h2>
+        </div>
+        
+        {% if consultations %}
+        <!-- Table Header -->
+        <div class="px-6 py-3 bg-gray-100 border-b grid grid-cols-12 gap-2 font-semibold text-gray-700 text-sm">
+            <div class="col-span-2">Patient</div>
+            <div class="col-span-1 text-center">Profile</div>
+            <div class="col-span-1 text-center">History</div>
+            <div class="col-span-1 text-center">Exam</div>
+            <div class="col-span-1 text-center">Diagnose</div>
+            <div class="col-span-1 text-center">Prescribe</div>
+            <div class="col-span-1 text-center">Time</div>
+            <div class="col-span-4 text-right">Actions</div>
+        </div>
+        
+        <!-- Patient Rows -->
+        <div class="divide-y divide-gray-200">
+            {% for consult in consultations %}
+            <div class="px-6 py-4 hover:bg-gray-50 grid grid-cols-12 gap-2 items-center">
+                <!-- Patient Info -->
+                <div class="col-span-2 flex items-center space-x-3">
+                    <div class="bg-green-100 rounded-lg p-2">
+                        <i class="fas fa-user-circle text-green-700 text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ consult.name }}</p>
+                    </div>
+                </div>
+                
+                <!-- Profile Button -->
+                <div class="col-span-1 text-center">
+                    <button data-patient-id="{{ consult.patient_id }}"
+                            data-name="{{ consult.name }}"
+                            data-dob="{{ consult.date_of_birth }}"
+                            data-gender="{{ consult.gender }}"
+                            data-blood="{{ consult.blood_type }}"
+                            data-allergies="{{ consult.allergies }}"
+                            data-contact="{{ consult.contact }}"
+                            data-address="{{ consult.address }}"
+                            data-created="{{ consult.created_at }}"
+                            onclick="openPatientProfileFromData(this)"
+                            class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition"
+                            title="View Profile">
+                        <i class="fas fa-id-card text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- History Button -->
+                <div class="col-span-1 text-center">
+                    <button data-patient-id="{{ consult.patient_id }}"
+                            data-name="{{ consult.name }}"
+                            onclick="openHistoryModalFromData(this)"
+                            class="bg-purple-100 hover:bg-purple-200 text-purple-700 p-2 rounded-lg transition"
+                            title="View History">
+                        <i class="fas fa-folder-open text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- Exam Button -->
+                <div class="col-span-1 text-center">
+                    {% if consult.has_exam %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openExamModal(this)"
+                            class="bg-green-100 text-green-700 p-2 rounded-lg cursor-default relative"
+                            title="Exam Completed">
+                        <i class="fas fa-file-medical text-lg"></i>
+                        <i class="fas fa-check-circle absolute -top-1 -right-1 text-xs text-green-600 bg-white rounded-full"></i>
+                    </button>
+                    {% else %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openExamModal(this)"
+                            class="bg-orange-100 hover:bg-orange-200 text-orange-700 p-2 rounded-lg transition"
+                            title="Patient Exam">
+                        <i class="fas fa-file-medical text-lg"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Diagnose Button -->
+                <div class="col-span-1 text-center">
+                    {% if consult.has_diagnosis %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openDiagnoseModal(this)"
+                            class="bg-green-100 text-green-700 p-2 rounded-lg cursor-default relative"
+                            title="Diagnosis Completed">
+                        <span class="fa-stack text-xs">
+                            <i class="fas fa-folder fa-stack-2x"></i>
+                            <i class="fas fa-pen fa-stack-1x" style="margin-top: 4px; margin-left: 2px;"></i>
+                        </span>
+                        <i class="fas fa-check-circle absolute -top-1 -right-1 text-xs text-green-600 bg-white rounded-full"></i>
+                    </button>
+                    {% else %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openDiagnoseModal(this)"
+                            class="bg-teal-100 hover:bg-teal-200 text-teal-700 p-2 rounded-lg transition"
+                            title="Diagnose Patient">
+                        <span class="fa-stack text-xs">
+                            <i class="fas fa-folder fa-stack-2x"></i>
+                            <i class="fas fa-pen fa-stack-1x" style="margin-top: 4px; margin-left: 2px;"></i>
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Prescribe Button -->
+                <div class="col-span-1 text-center">
+                    {% if consult.has_prescription %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openPrescribeModal(this)"
+                            class="bg-green-100 text-green-700 p-2 rounded-lg cursor-default relative"
+                            title="Prescription Completed">
+                        <i class="fas fa-prescription text-lg"></i>
+                        <i class="fas fa-check-circle absolute -top-1 -right-1 text-xs text-green-600 bg-white rounded-full"></i>
+                    </button>
+                    {% else %}
+                    <button data-consult-id="{{ consult.id }}"
+                            data-patient-id="{{ consult.patient_id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="openPrescribeModal(this)"
+                            class="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition"
+                            title="Prescribe Medicine">
+                        <i class="fas fa-prescription text-lg"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Time -->
+                <div class="col-span-1 text-center">
+                    <span class="text-xs text-gray-500">
+                        <i class="far fa-clock mr-1"></i>{{ consult.created_at }}
+                    </span>
+                </div>
+                
+                <!-- Actions -->
+                <div class="col-span-4 flex justify-end gap-2">
+                    <button type="button"
+                            data-consult-id="{{ consult.id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="showCompleteConfirm(this.dataset.consultId, this.dataset.patientName)"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                            title="Complete Consultation">
+                        <i class="fas fa-check mr-1"></i>Complete
+                    </button>
+                    <button type="button"
+                            data-consult-id="{{ consult.id }}"
+                            data-patient-name="{{ consult.name }}"
+                            onclick="showRemoveConfirm(this.dataset.consultId, this.dataset.patientName)"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                            title="Remove from Queue">
+                        <i class="fas fa-times mr-1"></i>Remove
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12 text-gray-500">
+            <i class="fas fa-user-md text-5xl mb-4 opacity-50"></i>
+            <p class="text-lg">No patients in consultation queue</p>
+            <a href="{{ url_for('patients') }}" class="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
+                Go to Patients <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Patient Profile Modal -->
+<div id="profileModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-xl bg-white">
+        <!-- Clinic Header -->
+        <div class="bg-gradient-to-r from-green-700 to-green-600 text-white px-6 py-4 rounded-t-xl">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-2xl font-bold">eCare Medical Records</h2>
+                    <div class="mt-2 text-sm space-y-1">
+                        <p><i class="fas fa-phone mr-2"></i>Contact: +1 (555) 123-4567</p>
+                        <p><i class="fas fa-envelope mr-2"></i>Email: info@ecaremedical.com</p>
+                    </div>
+                </div>
+                <button onclick="closeProfileModal()" class="text-white hover:text-gray-200" title="Close" aria-label="Close modal">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            <div class="mt-3 text-sm">
+                <p><i class="far fa-calendar-plus mr-2"></i>Patient Added: <span id="profile_added_date"></span></p>
+            </div>
+        </div>
+        
+        <!-- Patient Information -->
+        <div class="p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-user-circle text-green-700 mr-2"></i>Patient Information
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Full Name</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1" id="profile_name"></p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Date of Birth</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1" id="profile_dob"></p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Age</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1"><span class="calculate-age-modal"></span> years old</p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Gender</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1" id="profile_gender"></p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Blood Type</label>
+                    <p class="text-lg font-semibold text-red-700 mt-1" id="profile_blood_type"></p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <label class="text-sm font-medium text-gray-500">Contact Number</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1" id="profile_contact"></p>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg md:col-span-2">
+                    <label class="text-sm font-medium text-gray-500">Address</label>
+                    <p class="text-lg font-semibold text-gray-900 mt-1" id="profile_address"></p>
+                </div>
+                
+                <div class="bg-red-50 p-4 rounded-lg md:col-span-2 border-l-4 border-red-500">
+                    <label class="text-sm font-medium text-red-700 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Allergies
+                    </label>
+                    <p class="text-lg font-semibold text-red-900 mt-1" id="profile_allergies"></p>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeProfileModal()" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Patient History Modal -->
+<div id="historyModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-5 mx-auto p-5 border w-full max-w-5xl shadow-lg rounded-xl bg-white mb-10">
+        <div class="flex justify-between items-center mb-4 border-b pb-4">
+            <h3 class="text-2xl font-bold text-gray-900 flex items-center">
+                <i class="fas fa-folder-open text-purple-700 mr-3"></i>
+                <span id="history_patient_name"></span> - Medical History
+            </h3>
+            <div class="flex gap-2">
+                <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium">
+                    <i class="fas fa-file-pdf mr-2"></i>Download PDF
+                </button>
+                <button onclick="closeHistoryModal()" class="text-gray-400 hover:text-gray-600" title="Close" aria-label="Close modal">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content to be printed/exported -->
+        <div id="historyContent" class="space-y-6">
+            <!-- Clinic Header for PDF -->
+            <div class="text-center border-b pb-4 print-only">
+                <h1 class="text-3xl font-bold text-gray-900">eCare Medical Records</h1>
+                <p class="text-sm text-gray-600 mt-1">Contact: +1 (555) 123-4567 | Email: info@ecaremedical.com</p>
+                <p class="text-lg font-semibold text-gray-800 mt-2">Patient Medical History Report</p>
+            </div>
+            
+            <!-- Patient Information Section -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h4 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-user-circle text-green-700 mr-2"></i>Patient Information
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="patient_info_section">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Vitals History Section -->
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-notes-medical text-blue-700 mr-2"></i>Vital Signs History
+                </h4>
+                <div id="vitals_section">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Appointments History Section -->
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <h4 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-calendar-alt text-yellow-700 mr-2"></i>Appointments History
+                </h4>
+                <div id="appointments_section">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+            
+            <!-- Exams & Complaints History Section -->
+            <div class="bg-orange-50 p-4 rounded-lg">
+                <h4 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-file-medical text-orange-700 mr-2"></i>Examinations & Complaints History
+                </h4>
+                <div id="exams_section">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+            
+            <!-- Diagnoses History Section -->
+            <div class="bg-teal-50 p-4 rounded-lg">
+                <h4 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                    <i class="fas fa-diagnoses text-teal-700 mr-2"></i>Diagnoses History
+                </h4>
+                <div id="diagnoses_section">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 flex justify-end gap-3 border-t pt-4">
+            <button onclick="closeHistoryModal()" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Consultation Confirmation Modal -->
+<div id="completeConfirmModal" class="hidden fixed inset-0 z-[9999]">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-check-circle mr-3 text-2xl"></i>Complete Consultation
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start mb-6">
+                    <div class="flex-shrink-0 bg-green-100 rounded-full p-3">
+                        <i class="fas fa-user-check text-green-600 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-lg font-semibold text-gray-900 mb-2">Confirm Completion</p>
+                        <p class="text-gray-600">
+                            Mark consultation for <strong id="complete_patient_name" class="text-gray-900"></strong> as complete?
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeCompleteConfirm()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="button" onclick="confirmComplete()" 
+                            class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-check mr-2"></i>Complete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remove from Queue Confirmation Modal -->
+<div id="removeConfirmModal" class="hidden fixed inset-0 z-[9999]">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-user-times mr-3 text-2xl"></i>Remove from Queue
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start mb-6">
+                    <div class="flex-shrink-0 bg-red-100 rounded-full p-3">
+                        <i class="fas fa-exclamation text-red-600 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-lg font-semibold text-gray-900 mb-2">Confirm Removal</p>
+                        <p class="text-gray-600">
+                            Remove <strong id="remove_patient_name" class="text-gray-900"></strong> from the consultation queue?
+                        </p>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeRemoveConfirm()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="button" onclick="confirmRemove()" 
+                            class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-trash mr-2"></i>Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Patient Exam Modal -->
+<div id="examModal" class="hidden fixed inset-0 z-[9999]">
+    <div class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full my-8">
+            <div class="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-file-medical mr-3 text-2xl"></i>Patient Examination
+                </h3>
+                <p class="text-orange-100 text-sm mt-1">Fill out examination details and recommend tests</p>
+            </div>
+            
+            <form method="POST" action="/exams/add" id="examForm">
+                <input type="hidden" name="consultation_id" id="exam_consultation_id">
+                <input type="hidden" name="patient_id" id="exam_patient_id">
+                
+                <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
+                            <i class="fas fa-user-injured mr-2 text-orange-600"></i>Patient: <span id="exam_patient_name_display" class="ml-2 text-orange-600"></span>
+                        </h4>
+                    </div>
+                    
+                    <!-- Presenting Complaint -->
+                    <div class="mb-4">
+                        <label for="presenting_complaint" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-comments mr-1"></i>Presenting Complaint *
+                        </label>
+                        <textarea name="presenting_complaint" 
+                                  id="presenting_complaint" 
+                                  rows="3" 
+                                  required
+                                  placeholder="Describe the patient's main complaint..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                    </div>
+                    
+                    <!-- History of Presenting Complaint -->
+                    <div class="mb-6">
+                        <label for="history_of_complaint" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-history mr-1"></i>History of Presenting Complaint *
+                        </label>
+                        <textarea name="history_of_complaint" 
+                                  id="history_of_complaint" 
+                                  rows="4" 
+                                  required
+                                  placeholder="Detailed history of the complaint (onset, duration, progression, etc.)..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
+                    </div>
+                    
+                    <!-- Recommended Tests -->
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center">
+                            <i class="fas fa-flask mr-2 text-orange-600"></i>Recommended Laboratory Tests
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="random_blood_sugar" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Random Blood Sugar (RBS)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="fasting_blood_sugar" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Fasting Blood Sugar (FBS)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="liver_function" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Liver Function Test (LFT)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="full_blood_count" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Complete Blood Count (CBC)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="lipid_profile" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Lipid Profile</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="kidney_function" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Kidney Function Test (KFT)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="thyroid_function" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Thyroid Function Test</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="urinalysis" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Urinalysis</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="stool_examination" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Stool Examination</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="chest_xray" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Chest X-Ray</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="ecg" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Electrocardiogram (ECG)</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                                <input type="checkbox" name="ultrasound" value="1" class="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded">
+                                <span class="text-sm text-gray-700">Ultrasound</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Diagnosis Recommendation -->
+                    <div class="mb-4">
+                        <label class="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg cursor-pointer">
+                            <input type="checkbox" 
+                                   id="recommend_diagnosis" 
+                                   name="recommend_diagnosis" 
+                                   value="1" 
+                                   onchange="toggleDiagnosisDetails()"
+                                   class="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded">
+                            <span class="font-medium text-gray-900">
+                                <i class="fas fa-stethoscope mr-1"></i>Do you recommend a diagnosis?
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <!-- Clinical Details (shows when diagnosis is recommended) -->
+                    <div id="clinical_details_section" class="hidden mb-4">
+                        <label for="clinical_details" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-notes-medical mr-1"></i>Type Clinical Details Below
+                        </label>
+                        <textarea name="clinical_details" 
+                                  id="clinical_details" 
+                                  rows="4" 
+                                  placeholder="Enter detailed clinical diagnosis and recommendations..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" onclick="closeExamModal()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-paper-plane mr-2"></i>Send to Lab
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Diagnose Modal -->
+<div id="diagnoseModal" class="hidden fixed inset-0 z-[9999]">
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-[9998]"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto z-[9999]">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-6xl w-full my-8">
+            <div class="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-folder-medical mr-3 text-2xl"></i>Patient Diagnosis
+                </h3>
+                <p class="text-teal-100 text-sm mt-1">Review laboratory results and provide diagnosis</p>
+            </div>
+            
+            <form method="POST" action="/diagnosis/submit" id="diagnoseForm">
+                <input type="hidden" name="consultation_id" id="diagnose_consultation_id">
+                <input type="hidden" name="patient_id" id="diagnose_patient_id">
+                
+                <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
+                            <i class="fas fa-user-injured mr-2 text-teal-600"></i>Patient: <span id="diagnose_patient_name_display" class="ml-2 text-teal-600"></span>
+                        </h4>
+                    </div>
+                    
+                    <!-- Laboratory Results Section -->
+                    <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 class="font-semibold text-gray-900 mb-4 flex items-center">
+                            <i class="fas fa-vials mr-2 text-blue-600"></i>Laboratory Test Results
+                        </h4>
+                        <div id="lab_results_container" class="space-y-4">
+                            <!-- Lab results will be populated here dynamically -->
+                            <p class="text-gray-500 text-center py-4">Loading laboratory results...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Lab Tech General Comment -->
+                    <div class="mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <label for="lab_tech_comment" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-comment-medical mr-1"></i>Laboratory Technician General Comment
+                        </label>
+                        <textarea name="lab_tech_comment" 
+                                  id="lab_tech_comment" 
+                                  rows="3" 
+                                  placeholder="Enter general comments from laboratory technician..."
+                                  class="w-full px-3 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white"></textarea>
+                    </div>
+                    
+                    <!-- Diagnosis Confirmation -->
+                    <div class="mb-4 bg-green-50 p-4 rounded-lg border border-green-200">
+                        <label for="confirmed_diagnosis" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-stethoscope mr-1"></i>Confirmed Diagnosis *
+                        </label>
+                        <select name="confirmed_diagnosis" 
+                                id="confirmed_diagnosis" 
+                                required
+                                class="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+                            <option value="">-- Select Diagnosis --</option>
+                            <option value="Malaria">Malaria</option>
+                            <option value="Bacterial Infection">Bacterial Infection</option>
+                            <option value="Viral Infection">Viral Infection</option>
+                            <option value="Diabetes Mellitus">Diabetes Mellitus</option>
+                            <option value="Hypertension">Hypertension</option>
+                            <option value="Anemia">Anemia</option>
+                            <option value="Typhoid Fever">Typhoid Fever</option>
+                            <option value="Tuberculosis">Tuberculosis</option>
+                            <option value="Pneumonia">Pneumonia</option>
+                            <option value="Urinary Tract Infection">Urinary Tract Infection</option>
+                            <option value="Gastroenteritis">Gastroenteritis</option>
+                            <option value="Dengue Fever">Dengue Fever</option>
+                            <option value="COVID-19">COVID-19</option>
+                            <option value="Asthma">Asthma</option>
+                            <option value="Chronic Kidney Disease">Chronic Kidney Disease</option>
+                            <option value="Liver Disease">Liver Disease</option>
+                            <option value="Thyroid Disorder">Thyroid Disorder</option>
+                            <option value="Heart Disease">Heart Disease</option>
+                            <option value="Cancer (suspected)">Cancer (suspected)</option>
+                            <option value="Allergic Reaction">Allergic Reaction</option>
+                            <option value="Dehydration">Dehydration</option>
+                            <option value="Malnutrition">Malnutrition</option>
+                            <option value="Skin Infection">Skin Infection</option>
+                            <option value="Other">Other (Specify in notes)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Additional Notes -->
+                    <div class="mb-4">
+                        <label for="diagnosis_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-notes-medical mr-1"></i>Additional Notes & Recommendations
+                        </label>
+                        <textarea name="diagnosis_notes" 
+                                  id="diagnosis_notes" 
+                                  rows="4" 
+                                  placeholder="Enter additional notes, treatment recommendations, and follow-up instructions..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" onclick="closeDiagnoseModal()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-check-circle mr-2"></i>Submit Diagnosis
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Prescribe Modal -->
+<div id="prescribeModal" class="hidden fixed inset-0 z-[9999]">
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-[9998]"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto z-[9999]">
+        <div class="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full my-8">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-xl">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-prescription mr-3 text-2xl"></i>Prescribe Medicine
+                </h3>
+                <p class="text-blue-100 text-sm mt-1">Prescribe medications for the patient</p>
+            </div>
+            
+            <form method="POST" action="/prescription/submit" id="prescribeForm">
+                <input type="hidden" name="consultation_id" id="prescribe_consultation_id">
+                <input type="hidden" name="patient_id" id="prescribe_patient_id">
+                
+                <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 mb-2 flex items-center">
+                            <i class="fas fa-user-injured mr-2 text-blue-600"></i>Patient: <span id="prescribe_patient_name_display" class="ml-2 text-blue-600"></span>
+                        </h4>
+                    </div>
+                    
+                    <!-- Number of Medicines -->
+                    <div class="mb-6">
+                        <label for="medicine_count" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-pills mr-1"></i>How many medicines do you want to prescribe? *
+                        </label>
+                        <input type="number" 
+                               name="medicine_count" 
+                               id="medicine_count" 
+                               min="1" 
+                               max="20" 
+                               value="1"
+                               required
+                               onchange="generateMedicineFields()"
+                               class="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <!-- Medicine Fields Container -->
+                    <div id="medicine_fields_container" class="space-y-4 mb-6">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                    
+                    <!-- Prescription Comment -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-comment-medical mr-1"></i>Do you want to add prescription comment?
+                        </label>
+                        <div class="flex gap-4 mb-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="has_prescription_comment" value="yes" onchange="togglePrescriptionComment()" class="mr-2">
+                                Yes
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="has_prescription_comment" value="no" onchange="togglePrescriptionComment()" checked class="mr-2">
+                                No
+                            </label>
+                        </div>
+                        <textarea name="prescription_comment" 
+                                  id="prescription_comment" 
+                                  rows="3" 
+                                  class="hidden w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Enter prescription comments or special instructions..."></textarea>
+                    </div>
+                    
+                    <!-- Management Plan -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-clipboard-list mr-1"></i>Do you want to add management plan?
+                        </label>
+                        <div class="flex gap-4 mb-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="has_management_plan" value="yes" onchange="toggleManagementPlan()" class="mr-2">
+                                Yes
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="has_management_plan" value="no" onchange="toggleManagementPlan()" checked class="mr-2">
+                                No
+                            </label>
+                        </div>
+                        <textarea name="management_plan" 
+                                  id="management_plan" 
+                                  rows="4" 
+                                  class="hidden w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Enter management plan and follow-up care instructions..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex justify-end gap-3">
+                    <button type="button" onclick="closePrescribeModal()" 
+                            class="px-6 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-lg">
+                        <i class="fas fa-paper-plane mr-2"></i>Send to Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    let currentPatientName = '';
+    
+    function openHistoryModal(patientId, patientName) {
+        currentPatientName = patientName;
+        document.getElementById('history_patient_name').textContent = patientName;
+        
+        // Fetch patient history from API
+        fetch(`/api/patient/${patientId}/history`)
+            .then(response => response.json())
+            .then(data => {
+                populatePatientInfo(data.patient);
+                populateVitals(data.vitals);
+                populateAppointments(data.appointments);
+                populateExams(data.exams);
+                populateDiagnoses(data.diagnoses);
+                document.getElementById('historyModal').classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error fetching patient history:', error);
+                alert('Error loading patient history');
+            });
+    }
+    
+    function closeHistoryModal() {
+        document.getElementById('historyModal').classList.add('hidden');
+    }
+    
+    function populatePatientInfo(patient) {
+        const section = document.getElementById('patient_info_section');
+        const age = getAge(patient.date_of_birth);
+        
+        section.innerHTML = `
+            <div>
+                <label class="text-xs font-medium text-gray-500">Full Name</label>
+                <p class="text-sm font-semibold text-gray-900">${patient.name}</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500">Date of Birth</label>
+                <p class="text-sm font-semibold text-gray-900">${patient.date_of_birth}</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500">Age</label>
+                <p class="text-sm font-semibold text-gray-900">${age} years old</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500">Gender</label>
+                <p class="text-sm font-semibold text-gray-900">${patient.gender}</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500">Blood Type</label>
+                <p class="text-sm font-semibold text-red-700">${patient.blood_type || 'N/A'}</p>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500">Contact Number</label>
+                <p class="text-sm font-semibold text-gray-900">${patient.contact || 'N/A'}</p>
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs font-medium text-gray-500">Address</label>
+                <p class="text-sm font-semibold text-gray-900">${patient.address || 'N/A'}</p>
+            </div>
+            <div class="col-span-2 md:col-span-3">
+                <label class="text-xs font-medium text-red-500">Allergies</label>
+                <p class="text-sm font-semibold text-red-900">${patient.allergies || 'None'}</p>
+            </div>
+        `;
+    }
+    
+    function populateVitals(vitals) {
+        const section = document.getElementById('vitals_section');
+        
+        if (vitals.length === 0) {
+            section.innerHTML = '<p class="text-sm text-gray-500 italic">No vital signs recorded yet.</p>';
+            return;
+        }
+        
+        let html = '<div class="space-y-3">';
+        vitals.forEach(vital => {
+            html += `
+                <div class="bg-white p-3 rounded border border-blue-200">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-semibold text-blue-700">Recorded: ${vital.recorded_at}</span>
+                        <span class="text-xs text-gray-600">By: ${vital.recorded_by}</span>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                        <div><span class="text-gray-600">BP:</span> <strong>${vital.blood_pressure}</strong></div>
+                        <div><span class="text-gray-600">HR:</span> <strong>${vital.heart_rate} bpm</strong></div>
+                        <div><span class="text-gray-600">Temp:</span> <strong>${vital.temperature}°C</strong></div>
+                        <div><span class="text-gray-600">RR:</span> <strong>${vital.respiratory_rate}/min</strong></div>
+                        <div><span class="text-gray-600">SpO2:</span> <strong>${vital.oxygen_saturation || 'N/A'}%</strong></div>
+                    </div>
+                    ${vital.notes ? `<p class="text-xs text-gray-700 mt-2"><strong>Notes:</strong> ${vital.notes}</p>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+        section.innerHTML = html;
+    }
+    
+    function populateAppointments(appointments) {
+        const section = document.getElementById('appointments_section');
+        
+        if (appointments.length === 0) {
+            section.innerHTML = '<p class="text-sm text-gray-500 italic">No appointments recorded yet.</p>';
+            return;
+        }
+        
+        let html = '<div class="space-y-3">';
+        appointments.forEach(appt => {
+            const statusColor = appt.status === 'completed' ? 'green' : 
+                               appt.status === 'cancelled' ? 'red' : 'blue';
+            html += `
+                <div class="bg-white p-3 rounded border border-yellow-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">${appt.date} at ${appt.time}</p>
+                            <p class="text-xs text-gray-700 mt-1"><strong>Reason:</strong> ${appt.reason}</p>
+                            ${appt.notes ? `<p class="text-xs text-gray-600 mt-1"><strong>Notes:</strong> ${appt.notes}</p>` : ''}
+                        </div>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-${statusColor}-100 text-${statusColor}-800">
+                            ${appt.status}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        section.innerHTML = html;
+    }
+    
+    function populateExams(exams) {
+        const section = document.getElementById('exams_section');
+        
+        if (exams.length === 0) {
+            section.innerHTML = '<p class="text-sm text-gray-500 italic">No examinations recorded yet.</p>';
+            return;
+        }
+        
+        let html = '<div class="space-y-3">';
+        exams.forEach(exam => {
+            const statusColor = exam.status === 'completed' ? 'green' : 
+                               exam.status === 'pending' ? 'orange' : 'blue';
+            html += `
+                <div class="bg-white p-4 rounded border border-orange-200">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-semibold text-orange-700">${exam.created_at}</span>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-${statusColor}-100 text-${statusColor}-800">
+                            ${exam.status}
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">Presenting Complaint:</label>
+                            <p class="text-sm text-gray-900">${exam.presenting_complaint || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">History of Complaint:</label>
+                            <p class="text-sm text-gray-900">${exam.history_of_complaint || 'N/A'}</p>
+                        </div>
+                        ${exam.clinical_details ? `
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">Clinical Details:</label>
+                            <p class="text-sm text-gray-900">${exam.clinical_details}</p>
+                        </div>
+                        ` : ''}
+                        <div class="text-xs text-gray-500">
+                            <i class="fas fa-user mr-1"></i>Created by: ${exam.created_by}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        section.innerHTML = html;
+    }
+    
+    function populateDiagnoses(diagnoses) {
+        const section = document.getElementById('diagnoses_section');
+        
+        if (diagnoses.length === 0) {
+            section.innerHTML = '<p class="text-sm text-gray-500 italic">No diagnoses recorded yet.</p>';
+            return;
+        }
+        
+        let html = '<div class="space-y-3">';
+        diagnoses.forEach(diagnosis => {
+            html += `
+                <div class="bg-white p-4 rounded border border-teal-200">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-xs font-semibold text-teal-700">${diagnosis.diagnosed_at}</span>
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full bg-teal-100 text-teal-800">
+                            ${diagnosis.confirmed_diagnosis}
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        ${diagnosis.test_feedbacks ? `
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">Test Observations:</label>
+                            <p class="text-sm text-gray-900 whitespace-pre-line">${diagnosis.test_feedbacks}</p>
+                        </div>
+                        ` : ''}
+                        ${diagnosis.lab_tech_comment ? `
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">Lab Tech Comments:</label>
+                            <p class="text-sm text-gray-900">${diagnosis.lab_tech_comment}</p>
+                        </div>
+                        ` : ''}
+                        ${diagnosis.diagnosis_notes ? `
+                        <div>
+                            <label class="text-xs font-medium text-gray-600">Diagnosis Notes:</label>
+                            <p class="text-sm text-gray-900">${diagnosis.diagnosis_notes}</p>
+                        </div>
+                        ` : ''}
+                        <div class="text-xs text-gray-500 mt-2">
+                            <i class="fas fa-user-md mr-1"></i>Diagnosed by: ${diagnosis.diagnosed_by}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        section.innerHTML = html;
+    }
+    
+    function downloadPDF() {
+        const element = document.getElementById('historyContent');
+        
+        // Show print-only header
+        const printHeader = element.querySelector('.print-only');
+        printHeader.style.display = 'block';
+        
+        const opt = {
+            margin: 10,
+            filename: `${currentPatientName.replace(/\s+/g, '_')}_Medical_History.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Hide print-only header after PDF generation
+            printHeader.style.display = 'none';
+        });
+    }
+    
+    function openPatientProfile(id, name, dob, gender, blood_type, allergies, contact, address, added_date) {
+        document.getElementById('profile_name').textContent = name;
+        document.getElementById('profile_dob').textContent = dob;
+        document.getElementById('profile_gender').textContent = gender;
+        document.getElementById('profile_blood_type').textContent = blood_type || 'N/A';
+        document.getElementById('profile_allergies').textContent = allergies || 'None';
+        document.getElementById('profile_contact').textContent = contact || 'N/A';
+        document.getElementById('profile_address').textContent = address || 'N/A';
+        document.getElementById('profile_added_date').textContent = added_date;
+        
+        // Calculate and display age
+        const age = getAge(dob);
+        document.querySelector('.calculate-age-modal').textContent = age;
+        
+        document.getElementById('profileModal').classList.remove('hidden');
+    }
+    
+    function openPatientProfileFromData(button) {
+        const data = button.dataset;
+        openPatientProfile(
+            data.patientId,
+            data.name,
+            data.dob,
+            data.gender,
+            data.blood,
+            data.allergies,
+            data.contact,
+            data.address,
+            data.created
+        );
+    }
+    
+    function closeProfileModal() {
+        document.getElementById('profileModal').classList.add('hidden');
+    }
+    
+    function openHistoryModalFromData(button) {
+        const data = button.dataset;
+        openHistoryModal(data.patientId, data.name);
+    }
+    
+    // Complete consultation confirmation
+    let completeConsultId = null;
+    
+    function showCompleteConfirm(consultId, patientName) {
+        completeConsultId = consultId;
+        const modal = document.getElementById('completeConfirmModal');
+        const nameElement = document.getElementById('complete_patient_name');
+        
+        if (nameElement) {
+            nameElement.textContent = patientName;
+        }
+        
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function closeCompleteConfirm() {
+        const modal = document.getElementById('completeConfirmModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        completeConsultId = null;
+    }
+    
+    function confirmComplete() {
+        if (completeConsultId) {
+            window.location.href = `/consultations/complete/${completeConsultId}`;
+        }
+    }
+    
+    // Remove from queue confirmation
+    let removeConsultId = null;
+    
+    function showRemoveConfirm(consultId, patientName) {
+        removeConsultId = consultId;
+        const modal = document.getElementById('removeConfirmModal');
+        const nameElement = document.getElementById('remove_patient_name');
+        
+        if (nameElement) {
+            nameElement.textContent = patientName;
+        }
+        
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    function closeRemoveConfirm() {
+        const modal = document.getElementById('removeConfirmModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        removeConsultId = null;
+    }
+    
+    function confirmRemove() {
+        if (removeConsultId) {
+            window.location.href = `/consultations/remove/${removeConsultId}`;
+        }
+    }
+    
+    // Exam modal functions
+    function openExamModal(button) {
+        const consultId = button.dataset.consultId;
+        const patientId = button.dataset.patientId;
+        const patientName = button.dataset.patientName;
+        
+        document.getElementById('exam_consultation_id').value = consultId;
+        document.getElementById('exam_patient_id').value = patientId;
+        document.getElementById('exam_patient_name_display').textContent = patientName;
+        
+        // Reset form
+        document.getElementById('examForm').reset();
+        document.getElementById('exam_consultation_id').value = consultId;
+        document.getElementById('exam_patient_id').value = patientId;
+        document.getElementById('clinical_details_section').classList.add('hidden');
+        
+        document.getElementById('examModal').classList.remove('hidden');
+    }
+    
+    function closeExamModal() {
+        document.getElementById('examModal').classList.add('hidden');
+    }
+    
+    function toggleDiagnosisDetails() {
+        const checkbox = document.getElementById('recommend_diagnosis');
+        const section = document.getElementById('clinical_details_section');
+        
+        if (checkbox.checked) {
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    }
+    
+    // Diagnose modal functions
+    async function openDiagnoseModal(button) {
+        const consultId = button.dataset.consultId;
+        const patientId = button.dataset.patientId;
+        const patientName = button.dataset.patientName;
+        
+        document.getElementById('diagnose_consultation_id').value = consultId;
+        document.getElementById('diagnose_patient_id').value = patientId;
+        document.getElementById('diagnose_patient_name_display').textContent = patientName;
+        
+        // Reset form
+        document.getElementById('diagnoseForm').reset();
+        document.getElementById('diagnose_consultation_id').value = consultId;
+        document.getElementById('diagnose_patient_id').value = patientId;
+        
+        // Show modal
+        document.getElementById('diagnoseModal').classList.remove('hidden');
+        
+        // Load laboratory results
+        await loadLabResults(patientId);
+    }
+    
+    function closeDiagnoseModal() {
+        document.getElementById('diagnoseModal').classList.add('hidden');
+    }
+    
+    async function loadLabResults(patientId) {
+        const container = document.getElementById('lab_results_container');
+        container.innerHTML = '<p class="text-gray-500 text-center py-4">Loading laboratory results...</p>';
+        
+        try {
+            const response = await fetch(`/laboratory/results/${patientId}`);
+            const data = await response.json();
+            
+            if (data.success && data.results.length > 0) {
+                let html = '';
+                data.results.forEach((result, index) => {
+                    html += `
+                        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="flex items-start gap-4">
+                                <div class="flex-1">
+                                    <h5 class="font-semibold text-gray-900 mb-2 flex items-center">
+                                        <i class="fas fa-flask mr-2 text-blue-600"></i>${result.test_name}
+                                    </h5>
+                                    
+                                    ${result.test_result_image ? `
+                                    <div class="mb-3">
+                                        <img src="${result.test_result_image}" 
+                                             alt="${result.test_name}" 
+                                             class="max-w-full h-auto rounded border border-gray-300 cursor-pointer hover:shadow-lg transition"
+                                             onclick="viewImageFullscreen('${result.test_result_image}')"
+                                             style="max-height: 300px;">
+                                    </div>
+                                    ` : ''}
+                                    
+                                    ${result.clinical_details ? `
+                                    <div class="mb-3 bg-blue-50 p-3 rounded">
+                                        <p class="text-xs font-medium text-blue-700 mb-1">Clinical Details:</p>
+                                        <p class="text-sm text-gray-700">${result.clinical_details}</p>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    <div class="mb-2 text-xs text-gray-500">
+                                        <i class="far fa-calendar mr-1"></i>Processed: ${result.processed_at || 'N/A'}
+                                        ${result.processed_by ? `<span class="ml-3"><i class="fas fa-user mr-1"></i>By: ${result.processed_by}</span>` : ''}
+                                    </div>
+                                </div>
+                                
+                                <div class="w-80">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">
+                                        <i class="fas fa-comment-dots mr-1"></i>Doctor's Feedback
+                                    </label>
+                                    <textarea name="test_feedback_${index}" 
+                                              rows="3" 
+                                              placeholder="Enter your observations and feedback..."
+                                              class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-flask text-4xl mb-3 opacity-50"></i>
+                        <p class="text-lg">No laboratory results available yet</p>
+                        <p class="text-sm mt-1">Patient needs to complete laboratory tests first</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading lab results:', error);
+            container.innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
+                    <p class="text-lg">Error loading laboratory results</p>
+                    <p class="text-sm mt-1">${error.message}</p>
+                </div>
+            `;
+        }
+    }
+    
+    function viewImageFullscreen(imageUrl) {
+        // Create fullscreen overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4';
+        overlay.onclick = function() {
+            document.body.removeChild(overlay);
+        };
+        
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.className = 'max-w-full max-h-full rounded shadow-2xl';
+        img.onclick = function(e) {
+            e.stopPropagation();
+        };
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '<i class="fas fa-times text-2xl"></i>';
+        closeBtn.className = 'absolute top-4 right-4 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full w-12 h-12';
+        closeBtn.onclick = function() {
+            document.body.removeChild(overlay);
+        };
+        
+        overlay.appendChild(img);
+        overlay.appendChild(closeBtn);
+        document.body.appendChild(overlay);
+    }
+
+    // Prescribe modal functions
+    function openPrescribeModal(button) {
+        const consultId = button.dataset.consultId;
+        const patientId = button.dataset.patientId;
+        const patientName = button.dataset.patientName;
+        
+        document.getElementById('prescribe_consultation_id').value = consultId;
+        document.getElementById('prescribe_patient_id').value = patientId;
+        document.getElementById('prescribe_patient_name_display').textContent = patientName;
+        
+        // Reset form and generate initial medicine field
+        document.getElementById('prescribeForm').reset();
+        document.getElementById('prescribe_consultation_id').value = consultId;
+        document.getElementById('prescribe_patient_id').value = patientId;
+        document.getElementById('medicine_count').value = 1;
+        generateMedicineFields();
+        
+        document.getElementById('prescribeModal').classList.remove('hidden');
+    }
+
+    function closePrescribeModal() {
+        document.getElementById('prescribeModal').classList.add('hidden');
+        document.getElementById('prescribeForm').reset();
+    }
+
+    function generateMedicineFields() {
+        const count = parseInt(document.getElementById('medicine_count').value) || 1;
+        const container = document.getElementById('medicine_fields_container');
+        container.innerHTML = '';
+
+        const medicines = [
+            'Paracetamol', 'Ibuprofen', 'Amoxicillin', 'Azithromycin', 'Ciprofloxacin',
+            'Metformin', 'Omeprazole', 'Losartan', 'Amlodipine', 'Atorvastatin',
+            'Aspirin', 'Clopidogrel', 'Prednisone', 'Salbutamol', 'Cetirizine',
+            'Metronidazole', 'Doxycycline', 'Fluconazole', 'Insulin', 'Multivitamin'
+        ];
+
+        for (let i = 0; i < count; i++) {
+            const fieldGroup = document.createElement('div');
+            fieldGroup.className = 'p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3';
+            fieldGroup.innerHTML = `
+                <h4 class="font-semibold text-gray-700 mb-3">Medicine ${i + 1}</h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type of Medicine</label>
+                        <select name="medicine_type_${i}" required 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select medicine...</option>
+                            ${medicines.map(med => `<option value="${med}">${med}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount (tablets/ml)</label>
+                        <input type="text" name="medicine_amount_${i}" required 
+                               placeholder="e.g., 500mg"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Times per Day</label>
+                        <input type="number" name="medicine_times_${i}" required min="1" max="10" 
+                               value="2"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Duration (days)</label>
+                        <input type="number" name="medicine_duration_${i}" required min="1" max="365" 
+                               value="7"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            `;
+            container.appendChild(fieldGroup);
+        }
+    }
+
+    function togglePrescriptionComment() {
+        const commentSection = document.getElementById('prescription_comment_section');
+        const hasComment = document.querySelector('input[name="has_prescription_comment"]:checked').value;
+        
+        if (hasComment === 'yes') {
+            commentSection.classList.remove('hidden');
+            document.getElementById('prescription_comment').required = true;
+        } else {
+            commentSection.classList.add('hidden');
+            document.getElementById('prescription_comment').required = false;
+        }
+    }
+
+    function toggleManagementPlan() {
+        const planSection = document.getElementById('management_plan_section');
+        const hasPlan = document.querySelector('input[name="has_management_plan"]:checked').value;
+        
+        if (hasPlan === 'yes') {
+            planSection.classList.remove('hidden');
+            document.getElementById('management_plan').required = true;
+        } else {
+            planSection.classList.add('hidden');
+            document.getElementById('management_plan').required = false;
+        }
+    }
+</script>
+{% endblock %}

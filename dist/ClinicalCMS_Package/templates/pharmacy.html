@@ -1,0 +1,422 @@
+{% extends "layout.html" %}
+
+{% block title %}Pharmacy - Clinical Management System{% endblock %}
+
+{% block content %}
+<div class="slide-in">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-pills mr-3 text-purple-700"></i>Pharmacy
+        </h1>
+        <p class="text-gray-600 mt-2">Patients awaiting medicine dispensing</p>
+    </div>
+
+    <!-- Pharmacy Patients List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h2 class="text-lg font-semibold text-gray-900">Pending Drug Dispensing</h2>
+        </div>
+        
+        {% if patients %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescribed By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for patient in patients %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-circle text-purple-400 text-2xl mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ patient.name }}</div>
+                                    <div class="text-xs text-gray-500">{{ patient.gender }} | {{ patient.date_of_birth }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <i class="fas fa-user-md mr-1 text-blue-500"></i>{{ patient.prescribed_by }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                <i class="far fa-clock mr-1"></i>{{ patient.prescribed_at }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>{{ patient.status|upper }}
+                            </span>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-credit-card mr-1"></i>{{ patient.payment_method }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button type="button"
+                                    onclick="openProfileModal(this)"
+                                    data-patient-id="{{ patient.patient_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    data-patient-gender="{{ patient.gender }}"
+                                    data-patient-dob="{{ patient.date_of_birth }}"
+                                    data-patient-contact="{{ patient.contact }}"
+                                    class="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                <i class="fas fa-user mr-2"></i>Profile
+                            </button>
+                            
+                            <button type="button"
+                                    onclick="openPrescriptionModal(this)"
+                                    data-prescription-id="{{ patient.prescription_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    data-patient-gender="{{ patient.gender }}"
+                                    data-medicines='{{ patient.medicines }}'
+                                    data-prescription-comment="{{ patient.prescription_comment }}"
+                                    data-management-plan="{{ patient.management_plan }}"
+                                    data-prescribed-by="{{ patient.prescribed_by }}"
+                                    data-prescribed-at="{{ patient.prescribed_at }}"
+                                    data-payment-status="{{ patient.status }}"
+                                    data-payment-method="{{ patient.payment_method }}"
+                                    class="inline-flex items-center px-3 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">
+                                <i class="fas fa-file-prescription mr-2"></i>Prescription
+                            </button>
+                            
+                            <button type="button"
+                                    onclick="openConfirmModal(this)"
+                                    data-prescription-id="{{ patient.prescription_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    class="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                <i class="fas fa-check mr-2"></i>Complete
+                            </button>
+                            
+                            <button type="button"
+                                    onclick="openCancelModal(this)"
+                                    data-prescription-id="{{ patient.prescription_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    class="inline-flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                                <i class="fas fa-times mr-2"></i>Cancel
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center">
+            <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+            <p class="text-gray-500 text-lg">No patients in pharmacy queue</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profileModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-20 mx-auto p-8 border w-11/12 max-w-2xl shadow-2xl rounded-2xl bg-white">
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-xl -mx-8 -mt-8 mb-6">
+            <div class="flex justify-between items-center">
+                <h3 class="text-2xl font-bold">
+                    <i class="fas fa-user mr-2"></i>Patient Profile
+                </h3>
+                <button type="button" onclick="closeProfileModal()" 
+                        class="text-white hover:text-gray-200 text-3xl font-bold">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">Patient Name</p>
+                    <p class="font-medium text-gray-900" id="profile_patient_name"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">Gender</p>
+                    <p class="font-medium text-gray-900" id="profile_patient_gender"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">Date of Birth</p>
+                    <p class="font-medium text-gray-900" id="profile_patient_dob"></p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 mb-1">Contact</p>
+                    <p class="font-medium text-gray-900" id="profile_patient_contact"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <button type="button" onclick="closeProfileModal()" 
+                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Prescription Modal -->
+<div id="prescriptionModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-20 mx-auto p-8 border w-11/12 max-w-4xl shadow-2xl rounded-2xl bg-white">
+        <div class="bg-gradient-to-r from-teal-600 to-teal-700 text-white px-6 py-4 rounded-t-xl -mx-8 -mt-8 mb-6">
+            <div class="flex justify-between items-center">
+                <h3 class="text-2xl font-bold">
+                    <i class="fas fa-file-prescription mr-2"></i>Prescription Details
+                </h3>
+                <button type="button" onclick="closePrescriptionModal()" 
+                        class="text-white hover:text-gray-200 text-3xl font-bold">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <div id="prescriptionContent" class="space-y-6">
+            <!-- Patient Information -->
+            <div class="border-b pb-4">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3">Patient Information</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Patient Name</p>
+                        <p class="font-medium text-gray-900" id="presc_patient_name"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Gender</p>
+                        <p class="font-medium text-gray-900" id="presc_patient_gender"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Prescribed By</p>
+                        <p class="font-medium text-gray-900" id="presc_prescribed_by"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Date</p>
+                        <p class="font-medium text-gray-900" id="presc_prescribed_at"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="border-b pb-4">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3">Payment Information</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Payment Status</p>
+                        <p class="font-medium" id="presc_payment_status"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Payment Method</p>
+                        <p class="font-medium text-gray-900" id="presc_payment_method"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medicines -->
+            <div class="border-b pb-4">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3">Prescribed Medicines</h4>
+                <div id="presc_medicines_list" class="space-y-3">
+                    <!-- Dynamic medicine items -->
+                </div>
+            </div>
+
+            <!-- Prescription Comment -->
+            <div id="presc_prescription_comment_section" class="border-b pb-4 hidden">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">Prescription Comments</h4>
+                <p class="text-gray-700" id="presc_prescription_comment"></p>
+            </div>
+
+            <!-- Management Plan -->
+            <div id="presc_management_plan_section" class="border-b pb-4 hidden">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">Management Plan</h4>
+                <p class="text-gray-700" id="presc_management_plan"></p>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <button type="button" onclick="closePrescriptionModal()" 
+                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Confirmation Modal -->
+<div id="confirmModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-1/4 mx-auto p-8 border w-96 shadow-2xl rounded-2xl bg-white">
+        <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <i class="fas fa-check text-3xl text-green-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Complete Service</h3>
+            <p class="text-sm text-gray-600 mb-6">
+                Are you sure you want to complete the pharmacy service for <strong id="confirm_patient_name"></strong>?
+                <br>This will remove the patient from the pharmacy queue.
+            </p>
+            <div class="flex justify-center space-x-3">
+                <form id="completeForm" method="POST" action="">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-check mr-2"></i>Complete
+                    </button>
+                </form>
+                <button type="button" onclick="closeConfirmModal()" 
+                        class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div id="cancelModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-1/4 mx-auto p-8 border w-96 shadow-2xl rounded-2xl bg-white">
+        <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <i class="fas fa-times text-3xl text-red-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Cancel Service</h3>
+            <p class="text-sm text-gray-600 mb-6">
+                Are you sure you want to cancel the pharmacy service for <strong id="cancel_patient_name"></strong>?
+                <br>This will send the patient back to Account.
+            </p>
+            <div class="flex justify-center space-x-3">
+                <form id="cancelForm" method="POST" action="">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel Service
+                    </button>
+                </form>
+                <button type="button" onclick="closeCancelModal()" 
+                        class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                    Go Back
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Profile Modal Functions
+    function openProfileModal(button) {
+        const name = button.dataset.patientName;
+        const gender = button.dataset.patientGender;
+        const dob = button.dataset.patientDob;
+        const contact = button.dataset.patientContact;
+
+        document.getElementById('profile_patient_name').textContent = name;
+        document.getElementById('profile_patient_gender').textContent = gender;
+        document.getElementById('profile_patient_dob').textContent = dob;
+        document.getElementById('profile_patient_contact').textContent = contact || 'N/A';
+
+        document.getElementById('profileModal').classList.remove('hidden');
+    }
+
+    function closeProfileModal() {
+        document.getElementById('profileModal').classList.add('hidden');
+    }
+
+    // Prescription Modal Functions
+    function openPrescriptionModal(button) {
+        const patientName = button.dataset.patientName;
+        const patientGender = button.dataset.patientGender;
+        const medicines = JSON.parse(button.dataset.medicines);
+        const prescriptionComment = button.dataset.prescriptionComment;
+        const managementPlan = button.dataset.managementPlan;
+        const prescribedBy = button.dataset.prescribedBy;
+        const prescribedAt = button.dataset.prescribedAt;
+        const paymentStatus = button.dataset.paymentStatus;
+        const paymentMethod = button.dataset.paymentMethod;
+
+        document.getElementById('presc_patient_name').textContent = patientName;
+        document.getElementById('presc_patient_gender').textContent = patientGender;
+        document.getElementById('presc_prescribed_by').textContent = prescribedBy;
+        document.getElementById('presc_prescribed_at').textContent = prescribedAt;
+        
+        const statusEl = document.getElementById('presc_payment_status');
+        statusEl.textContent = paymentStatus.toUpperCase();
+        statusEl.className = paymentStatus === 'paid' ? 'font-medium text-green-600' : 'font-medium text-yellow-600';
+        
+        document.getElementById('presc_payment_method').textContent = paymentMethod;
+
+        // Fill medicines list
+        const medicinesList = document.getElementById('presc_medicines_list');
+        medicinesList.innerHTML = '';
+        
+        medicines.forEach((med, index) => {
+            const medDiv = document.createElement('div');
+            medDiv.className = 'bg-gray-50 p-4 rounded-lg border-l-4 border-teal-500';
+            medDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h5 class="font-semibold text-gray-900">${index + 1}. ${med.type}</h5>
+                    <span class="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded font-medium">${med.amount}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <span class="text-gray-600">Frequency:</span>
+                        <span class="font-medium text-gray-900">${med.times_per_day}x per day</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Duration:</span>
+                        <span class="font-medium text-gray-900">${med.duration_days} days</span>
+                    </div>
+                </div>
+            `;
+            medicinesList.appendChild(medDiv);
+        });
+
+        // Show/hide prescription comment
+        if (prescriptionComment && prescriptionComment.trim() !== '') {
+            document.getElementById('presc_prescription_comment').textContent = prescriptionComment;
+            document.getElementById('presc_prescription_comment_section').classList.remove('hidden');
+        } else {
+            document.getElementById('presc_prescription_comment_section').classList.add('hidden');
+        }
+
+        // Show/hide management plan
+        if (managementPlan && managementPlan.trim() !== '') {
+            document.getElementById('presc_management_plan').textContent = managementPlan;
+            document.getElementById('presc_management_plan_section').classList.remove('hidden');
+        } else {
+            document.getElementById('presc_management_plan_section').classList.add('hidden');
+        }
+
+        document.getElementById('prescriptionModal').classList.remove('hidden');
+    }
+
+    function closePrescriptionModal() {
+        document.getElementById('prescriptionModal').classList.add('hidden');
+    }
+
+    // Complete Confirmation Modal
+    function openConfirmModal(button) {
+        const prescriptionId = button.dataset.prescriptionId;
+        const patientName = button.dataset.patientName;
+        
+        document.getElementById('confirm_patient_name').textContent = patientName;
+        document.getElementById('completeForm').action = `/pharmacy/complete/${prescriptionId}`;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        document.getElementById('confirmModal').classList.add('hidden');
+    }
+
+    // Cancel Confirmation Modal
+    function openCancelModal(button) {
+        const prescriptionId = button.dataset.prescriptionId;
+        const patientName = button.dataset.patientName;
+        
+        document.getElementById('cancel_patient_name').textContent = patientName;
+        document.getElementById('cancelForm').action = `/pharmacy/cancel/${prescriptionId}`;
+        document.getElementById('cancelModal').classList.remove('hidden');
+    }
+
+    function closeCancelModal() {
+        document.getElementById('cancelModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

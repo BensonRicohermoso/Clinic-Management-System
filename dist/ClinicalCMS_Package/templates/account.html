@@ -1,0 +1,299 @@
+{% extends "layout.html" %}
+
+{% block title %}Account - Clinical Management System{% endblock %}
+
+{% block content %}
+<div class="slide-in">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            <i class="fas fa-dollar-sign mr-3 text-green-700"></i>Account
+        </h1>
+        <p class="text-gray-600 mt-2">Patients with prescriptions pending payment</p>
+    </div>
+
+    <!-- Account Patients List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b">
+            <h2 class="text-lg font-semibold text-gray-900">Pending Payments</h2>
+        </div>
+        
+        {% if patients %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescribed By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescribed At</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for patient in patients %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-circle text-green-400 text-2xl mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ patient.name }}</div>
+                                    <div class="text-xs text-gray-500">{{ patient.gender }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <i class="fas fa-user-md mr-1 text-blue-500"></i>{{ patient.prescribed_by }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <i class="far fa-clock mr-1"></i>{{ patient.prescribed_at }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if patient.status == 'paid' %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    <i class="fas fa-check-circle mr-1"></i>Paid
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    <i class="fas fa-clock mr-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <form method="POST" action="/account/complete/{{ patient.prescription_id }}" class="inline">
+                                <select name="payment_method" required 
+                                        class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-green-500"
+                                        {% if patient.status == 'paid' %}disabled{% endif %}>
+                                    <option value="">Select method...</option>
+                                    <option value="Cash" {% if patient.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                                    <option value="Credit Card" {% if patient.payment_method == 'Credit Card' %}selected{% endif %}>Credit Card</option>
+                                    <option value="Debit Card" {% if patient.payment_method == 'Debit Card' %}selected{% endif %}>Debit Card</option>
+                                    <option value="Insurance" {% if patient.payment_method == 'Insurance' %}selected{% endif %}>Insurance</option>
+                                    <option value="Mobile Payment" {% if patient.payment_method == 'Mobile Payment' %}selected{% endif %}>Mobile Payment</option>
+                                </select>
+                                {% if patient.status != 'paid' %}
+                                <button type="submit" class="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700">
+                                    <i class="fas fa-check mr-1"></i>Confirm
+                                </button>
+                                {% endif %}
+                            </form>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                            <button type="button"
+                                    onclick="openReceiptModal(this)"
+                                    data-prescription-id="{{ patient.prescription_id }}"
+                                    data-patient-name="{{ patient.name }}"
+                                    data-patient-gender="{{ patient.gender }}"
+                                    data-medicines='{{ patient.medicines }}'
+                                    data-prescription-comment="{{ patient.prescription_comment }}"
+                                    data-management-plan="{{ patient.management_plan }}"
+                                    data-prescribed-by="{{ patient.prescribed_by }}"
+                                    data-prescribed-at="{{ patient.prescribed_at }}"
+                                    class="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                <i class="fas fa-file-invoice mr-2"></i>Receipt
+                            </button>
+                            
+                            {% if patient.status == 'paid' and patient.pharmacy_status == 'not_sent' %}
+                            <form method="POST" action="/account/send-to-pharmacy/{{ patient.prescription_id }}" class="inline">
+                                <button type="submit" class="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                                    <i class="fas fa-pills mr-2"></i>Send to Pharmacy
+                                </button>
+                            </form>
+                            {% elif patient.pharmacy_status == 'sent' %}
+                                <span class="px-3 py-2 inline-flex items-center text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                                    <i class="fas fa-check mr-1"></i>Sent to Pharmacy
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center">
+            <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+            <p class="text-gray-500 text-lg">No pending payments at the moment</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div id="receiptModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
+    <div class="relative top-20 mx-auto p-8 border w-11/12 max-w-4xl shadow-2xl rounded-2xl bg-white">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl -mx-8 -mt-8 mb-6">
+            <div class="flex justify-between items-center">
+                <h3 class="text-2xl font-bold">
+                    <i class="fas fa-file-invoice mr-2"></i>Prescription Receipt
+                </h3>
+                <button type="button" onclick="closeReceiptModal()" 
+                        class="text-white hover:text-gray-200 text-3xl font-bold">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <!-- Receipt Content -->
+        <div id="receiptContent" class="space-y-6">
+            <!-- Patient Information -->
+            <div class="border-b pb-4">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3">Patient Information</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Patient Name</p>
+                        <p class="font-medium text-gray-900" id="receipt_patient_name"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Gender</p>
+                        <p class="font-medium text-gray-900" id="receipt_patient_gender"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Prescribed By</p>
+                        <p class="font-medium text-gray-900" id="receipt_prescribed_by"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Date</p>
+                        <p class="font-medium text-gray-900" id="receipt_prescribed_at"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medicines -->
+            <div class="border-b pb-4">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3">Prescribed Medicines</h4>
+                <div id="receipt_medicines_list" class="space-y-3">
+                    <!-- Dynamic medicine items will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Prescription Comment -->
+            <div id="receipt_prescription_comment_section" class="border-b pb-4 hidden">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">Prescription Comments</h4>
+                <p class="text-gray-700" id="receipt_prescription_comment"></p>
+            </div>
+
+            <!-- Management Plan -->
+            <div id="receipt_management_plan_section" class="border-b pb-4 hidden">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">Management Plan</h4>
+                <p class="text-gray-700" id="receipt_management_plan"></p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="flex justify-end space-x-3 mt-6">
+            <button type="button" onclick="printReceipt()" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-print mr-2"></i>Print
+            </button>
+            <button type="button" onclick="closeReceiptModal()" 
+                    class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openReceiptModal(button) {
+        const patientName = button.dataset.patientName;
+        const patientGender = button.dataset.patientGender;
+        const medicines = JSON.parse(button.dataset.medicines);
+        const prescriptionComment = button.dataset.prescriptionComment;
+        const managementPlan = button.dataset.managementPlan;
+        const prescribedBy = button.dataset.prescribedBy;
+        const prescribedAt = button.dataset.prescribedAt;
+
+        // Fill patient information
+        document.getElementById('receipt_patient_name').textContent = patientName;
+        document.getElementById('receipt_patient_gender').textContent = patientGender;
+        document.getElementById('receipt_prescribed_by').textContent = prescribedBy;
+        document.getElementById('receipt_prescribed_at').textContent = prescribedAt;
+
+        // Fill medicines list
+        const medicinesList = document.getElementById('receipt_medicines_list');
+        medicinesList.innerHTML = '';
+        
+        medicines.forEach((med, index) => {
+            const medDiv = document.createElement('div');
+            medDiv.className = 'bg-gray-50 p-4 rounded-lg';
+            medDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h5 class="font-semibold text-gray-900">${index + 1}. ${med.type}</h5>
+                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">${med.amount}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <span class="text-gray-600">Frequency:</span>
+                        <span class="font-medium text-gray-900">${med.times_per_day}x per day</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Duration:</span>
+                        <span class="font-medium text-gray-900">${med.duration_days} days</span>
+                    </div>
+                </div>
+            `;
+            medicinesList.appendChild(medDiv);
+        });
+
+        // Show/hide prescription comment
+        if (prescriptionComment && prescriptionComment.trim() !== '') {
+            document.getElementById('receipt_prescription_comment').textContent = prescriptionComment;
+            document.getElementById('receipt_prescription_comment_section').classList.remove('hidden');
+        } else {
+            document.getElementById('receipt_prescription_comment_section').classList.add('hidden');
+        }
+
+        // Show/hide management plan
+        if (managementPlan && managementPlan.trim() !== '') {
+            document.getElementById('receipt_management_plan').textContent = managementPlan;
+            document.getElementById('receipt_management_plan_section').classList.remove('hidden');
+        } else {
+            document.getElementById('receipt_management_plan_section').classList.add('hidden');
+        }
+
+        document.getElementById('receiptModal').classList.remove('hidden');
+    }
+
+    function closeReceiptModal() {
+        document.getElementById('receiptModal').classList.add('hidden');
+    }
+
+    function printReceipt() {
+        const receiptContent = document.getElementById('receiptContent').cloneNode(true);
+        const printWindow = window.open('', '_blank');
+        
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Prescription Receipt</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 40px; }
+                    h4 { color: #065f46; margin-top: 20px; border-bottom: 2px solid #065f46; padding-bottom: 5px; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                    .medicine-item { background: #f3f4f6; padding: 15px; margin: 10px 0; border-radius: 8px; }
+                    .medicine-name { font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+                    p { margin: 5px 0; }
+                    .label { color: #6b7280; font-size: 14px; }
+                    .value { font-weight: 600; }
+                </style>
+            </head>
+            <body>
+                <h2 style="text-align: center; color: #065f46;">Prescription Receipt</h2>
+                ${receiptContent.innerHTML}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    }
+</script>
+{% endblock %}
