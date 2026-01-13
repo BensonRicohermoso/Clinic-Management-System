@@ -1,6 +1,3 @@
-# Clinical Management System
-# Patient tracking and vitals monitoring for nursing staff
-
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -8,6 +5,7 @@ from functools import wraps
 from datetime import datetime, timedelta
 import os
 import re
+import json
 from models.database import init_db, get_db
 from config import config
 
@@ -21,11 +19,9 @@ app.config.from_object(config[config_name])
 if not os.environ.get('SECRET_KEY'):
     print("WARNING: Using default SECRET_KEY. Set SECRET_KEY environment variable in production!")
 
-# Helper function for file validation
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Helper function to sanitize HTML input
 def sanitize_input(text):
     if not text:
         return text
@@ -34,15 +30,12 @@ def sanitize_input(text):
     text = re.sub(r'[<>"\']', '', text)
     return text.strip()
 
-# init db
 with app.app_context():
     init_db()
-    
-# Register database cleanup
+
 from models.database import close_db
 app.teardown_appcontext(close_db)
 
-# login required decorator
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -91,7 +84,6 @@ def logout():
 def dashboard():
     db = get_db()
     
-    # get stats
     total_patients = db.execute('SELECT COUNT(*) as count FROM patients').fetchone()['count']
     
     today = datetime.now().strftime('%Y-%m-%d')
@@ -236,7 +228,6 @@ def add_vitals():
         flash(f'Error recording vitals: {str(e)}', 'error')
     return redirect(url_for('vitals'))
 
-# Appointments
 @app.route('/appointments')
 @login_required
 def appointments():
@@ -296,7 +287,6 @@ def delete_appointment(id):
     flash('Appointment deleted successfully!', 'info')
     return redirect(url_for('appointments'))
 
-# Consultations
 @app.route('/consultations')
 @login_required
 def consultations():
@@ -309,14 +299,54 @@ def consultations():
            WHERE c.status = 'waiting'
            ORDER BY c.created_at ASC'''
     ).fetchall()
-    return render_template('consultations.html', consultations=consultations_list)
+    
+    # Check exam and diagnosis status for each consultation
+    enhanced_consultations = []
+    for consult in consultations_list:
+        consult_dict = dict(consult)
+        
+        # Check if exam exists and its status
+        exam = db.execute(
+            'SELECT id, status FROM exams WHERE consultation_id = ? ORDER BY created_at DESC LIMIT 1',
+            (consult['id'],)
+        ).fetchone()
+        consult_dict['has_exam'] = exam is not None
+        consult_dict['exam_status'] = exam['status'] if exam else None
+        
+        # Check if diagnosis exists
+        diagnosis = db.execute(
+            'SELECT id FROM diagnoses WHERE consultation_id = ? LIMIT 1',
+            (consult['id'],)
+        ).fetchone()
+        consult_dict['has_diagnosis'] = diagnosis is not None
+        
+        # Check if prescription exists
+        prescription = db.execute(
+            'SELECT id FROM prescriptions WHERE consultation_id = ? LIMIT 1',
+            (consult['id'],)
+        ).fetchone()
+        consult_dict['has_prescription'] = prescription is not None
+        
+        enhanced_consultations.append(consult_dict)
+    
+    return render_template('consultations.html', consultations=enhanced_consultations)
 
 @app.route('/consultations/add/<int:patient_id>')
 @login_required
 def add_to_consultation(patient_id):
     db = get_db()
     try:
-        # Atomic check-insert using UNIQUE constraint handling
+        # Check if patient already in waiting queue
+        existing = db.execute(
+            'SELECT id FROM consultations WHERE patient_id = ? AND status = "waiting"',
+            (patient_id,)
+        ).fetchone()
+        
+        if existing:
+            flash('Patient is already in consultation queue!', 'warning')
+            return redirect(url_for('patients'))
+        
+        # Insert new consultation
         db.execute(
             'INSERT INTO consultations (patient_id, added_by) VALUES (?, ?)',
             (patient_id, session['username'])
@@ -354,6 +384,219 @@ def complete_consultation(id):
     flash('Consultation completed!', 'success')
     return redirect(url_for('consultations'))
 
+@app.route('/laboratory/results/<int:patient_id>')
+@login_required
+def get_lab_results(patient_id):
+    """Get laboratory results for a patient"""
+    db = get_db()
+    try:
+        results = db.execute('''
+            SELECT 
+                l.id,
+                l.test_name,
+                l.test_result_image,
+                l.clinical_details,
+                l.general_comments,
+                l.processed_by,
+                l.processed_at
+            FROM laboratory l
+            WHERE l.patient_id = ? AND l.status = 'completed'
+            ORDER BY l.processed_at DESC
+        ''', (patient_id,)).fetchall()
+        
+        # Convert to list of dictionaries
+        results_list = []
+        for row in results:
+            results_list.append({
+                'id': row['id'],
+                'test_name': row['test_name'],
+                'test_result_image': row['test_result_image'],
+                'clinical_details': row['clinical_details'],
+                'general_comments': row['general_comments'],
+                'processed_by': row['processed_by'],
+                'processed_at': row['processed_at']
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results_list
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/diagnosis/submit', methods=['POST'])
+@login_required
+def submit_diagnosis():
+    """Submit diagnosis for a patient"""
+    db = get_db()
+    try:
+        consultation_id = request.form.get('consultation_id')
+        patient_id = request.form.get('patient_id')
+        lab_tech_comment = sanitize_input(request.form.get('lab_tech_comment', ''))
+        confirmed_diagnosis = sanitize_input(request.form.get('confirmed_diagnosis', ''))
+        diagnosis_notes = sanitize_input(request.form.get('diagnosis_notes', ''))
+        
+        # Validate consultation exists
+        consultation = db.execute(
+            'SELECT id FROM consultations WHERE id = ? AND patient_id = ?',
+            (consultation_id, patient_id)
+        ).fetchone()
+        
+        if not consultation:
+            flash('Invalid consultation!', 'error')
+            return redirect(url_for('consultations'))
+        
+        # Validate required fields
+        if not confirmed_diagnosis:
+            flash('Please select a confirmed diagnosis!', 'error')
+            return redirect(url_for('consultations'))
+        
+        # Collect test feedbacks
+        test_feedbacks = []
+        for key in request.form:
+            if key.startswith('test_feedback_'):
+                feedback = sanitize_input(request.form.get(key, ''))
+                if feedback:
+                    test_feedbacks.append(feedback)
+        
+        # Combine all feedbacks
+        all_feedbacks = '\n---\n'.join(test_feedbacks) if test_feedbacks else ''
+        
+        # Insert diagnosis record
+        db.execute('''
+            INSERT INTO diagnoses (
+                consultation_id, patient_id, confirmed_diagnosis,
+                test_feedbacks, lab_tech_comment, diagnosis_notes,
+                diagnosed_by, diagnosed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ''', (
+            consultation_id, patient_id, confirmed_diagnosis,
+            all_feedbacks, lab_tech_comment, diagnosis_notes,
+            session['username']
+        ))
+        
+        # Keep consultation status as 'waiting' so patient remains in consultation room
+        db.execute('UPDATE consultations SET status=? WHERE id=?', ('waiting', consultation_id))
+        
+        db.commit()
+        flash('Diagnosis submitted successfully! Patient remains in consultation queue.', 'success')
+    except Exception as e:
+        db.rollback()
+        flash(f'Error submitting diagnosis: {str(e)}', 'error')
+    
+    return redirect(url_for('consultations'))
+
+@app.route('/prescription/submit', methods=['POST'])
+@login_required
+def submit_prescription():
+    """Submit prescription for a patient"""
+    db = get_db()
+    try:
+        consultation_id = request.form.get('consultation_id')
+        patient_id = request.form.get('patient_id')
+        medicine_count = int(request.form.get('medicine_count', 0))
+        
+        # Validate consultation exists
+        consultation = db.execute(
+            'SELECT id FROM consultations WHERE id = ? AND patient_id = ?',
+            (consultation_id, patient_id)
+        ).fetchone()
+        
+        if not consultation:
+            flash('Invalid consultation!', 'error')
+            return redirect(url_for('consultations'))
+        
+        # Validate required fields
+        if not consultation_id or not patient_id or medicine_count < 1:
+            flash('Invalid prescription data!', 'error')
+            return redirect(url_for('consultations'))
+        
+        # Collect medicine data
+        medicines = []
+        for i in range(medicine_count):
+            medicine_type = sanitize_input(request.form.get(f'medicine_type_{i}'))
+            medicine_amount = sanitize_input(request.form.get(f'medicine_amount_{i}'))
+            medicine_times = request.form.get(f'medicine_times_{i}')
+            medicine_duration = request.form.get(f'medicine_duration_{i}')
+            
+            if medicine_type and medicine_amount and medicine_times and medicine_duration:
+                try:
+                    times = int(medicine_times)
+                    duration = int(medicine_duration)
+                    
+                    # Validate ranges
+                    if times < 1 or times > 10:
+                        flash('Times per day must be between 1 and 10!', 'error')
+                        return redirect(url_for('consultations'))
+                    if duration < 1 or duration > 365:
+                        flash('Duration must be between 1 and 365 days!', 'error')
+                        return redirect(url_for('consultations'))
+                    
+                    medicines.append({
+                        'type': medicine_type,
+                        'amount': medicine_amount,
+                        'times_per_day': times,
+                        'duration_days': duration
+                    })
+                except ValueError:
+                    flash('Invalid times per day or duration value!', 'error')
+                    return redirect(url_for('consultations'))
+        
+        if not medicines:
+            flash('Please add at least one complete medicine entry!', 'error')
+            return redirect(url_for('consultations'))
+        
+        if len(medicines) != medicine_count:
+            flash(f'Expected {medicine_count} medicines but only {len(medicines)} were complete!', 'error')
+            return redirect(url_for('consultations'))
+        
+        # Get optional fields
+        has_prescription_comment = request.form.get('has_prescription_comment', 'no')
+        prescription_comment = ''
+        if has_prescription_comment == 'yes':
+            prescription_comment = sanitize_input(request.form.get('prescription_comment', ''))
+            if not prescription_comment:
+                flash('Prescription comment cannot be empty if selected!', 'error')
+                return redirect(url_for('consultations'))
+        
+        has_management_plan = request.form.get('has_management_plan', 'no')
+        management_plan = ''
+        if has_management_plan == 'yes':
+            management_plan = sanitize_input(request.form.get('management_plan', ''))
+            if not management_plan:
+                flash('Management plan cannot be empty if selected!', 'error')
+                return redirect(url_for('consultations'))
+        
+        # Convert medicines list to JSON string
+        medicines_json = json.dumps(medicines)
+        
+        # Insert prescription record with pharmacy_status
+        db.execute('''
+            INSERT INTO prescriptions (
+                consultation_id, patient_id, medicines,
+                prescription_comment, management_plan,
+                prescribed_by, prescribed_at, status, pharmacy_status
+            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'pending', 'not_sent')
+        ''', (
+            consultation_id, patient_id, medicines_json,
+            prescription_comment, management_plan,
+            session['username']
+        ))
+        
+        # Update consultation status to 'completed' since prescription is final step
+        db.execute('UPDATE consultations SET status=? WHERE id=?', ('completed', consultation_id))
+        
+        db.commit()
+        flash('Prescription submitted successfully! Patient sent to Account.', 'success')
+    except Exception as e:
+        db.rollback()
+        flash(f'Error submitting prescription: {str(e)}', 'error')
+    
+    return redirect(url_for('consultations'))
+
 @app.route('/api/patient/<int:patient_id>/history')
 @login_required
 def get_patient_history(patient_id):
@@ -378,13 +621,46 @@ def get_patient_history(patient_id):
         (patient_id,)
     ).fetchall()
     
+    # Get exams history (presenting complaints and history)
+    exams = db.execute(
+        '''SELECT 
+            e.id,
+            e.presenting_complaint,
+            e.history_of_complaint,
+            e.clinical_details,
+            e.status,
+            e.created_by,
+            e.created_at
+           FROM exams e
+           WHERE e.patient_id=? 
+           ORDER BY e.created_at DESC''',
+        (patient_id,)
+    ).fetchall()
+    
+    # Get diagnoses history
+    diagnoses = db.execute(
+        '''SELECT 
+            d.id,
+            d.confirmed_diagnosis,
+            d.test_feedbacks,
+            d.lab_tech_comment,
+            d.diagnosis_notes,
+            d.diagnosed_by,
+            d.diagnosed_at
+           FROM diagnoses d
+           WHERE d.patient_id=? 
+           ORDER BY d.diagnosed_at DESC''',
+        (patient_id,)
+    ).fetchall()
+    
     return jsonify({
         'patient': dict(patient) if patient else None,
         'vitals': [dict(v) for v in vitals],
-        'appointments': [dict(a) for a in appointments]
+        'appointments': [dict(a) for a in appointments],
+        'exams': [dict(e) for e in exams],
+        'diagnoses': [dict(d) for d in diagnoses]
     })
 
-# TODO: add more api endpoints later
 @app.route('/api/patients')
 @login_required
 def api_patients():
@@ -392,7 +668,6 @@ def api_patients():
     patients_list = db.execute('SELECT * FROM patients').fetchall()
     return jsonify([dict(p) for p in patients_list])
 
-# Exam Routes
 @app.route('/exams/add', methods=['POST'])
 @login_required
 def add_exam():
@@ -402,6 +677,16 @@ def add_exam():
         patient_id = request.form.get('patient_id')
         presenting_complaint = sanitize_input(request.form.get('presenting_complaint', ''))
         history_of_complaint = sanitize_input(request.form.get('history_of_complaint', ''))
+        
+        # Validate consultation exists
+        consultation = db.execute(
+            'SELECT id FROM consultations WHERE id = ? AND patient_id = ?',
+            (consultation_id, patient_id)
+        ).fetchone()
+        
+        if not consultation:
+            flash('Invalid consultation!', 'error')
+            return redirect(url_for('consultations'))
         
         # Validate required fields
         if not presenting_complaint or not history_of_complaint:
@@ -475,13 +760,11 @@ def add_exam():
     
     return redirect(url_for('consultations'))
 
-# Laboratory Routes  
 @app.route('/laboratory')
 @login_required
 def laboratory():
     db = get_db()
     
-    # Get all pending exams with patient info
     lab_patients = db.execute('''
         SELECT 
             e.id as exam_id,
@@ -620,8 +903,12 @@ def submit_lab_results():
         # Update exam status
         if results_saved:
             db.execute('UPDATE exams SET status=? WHERE id=?', ('completed', exam_id))
+            
+            # Send patient back to consultation queue after lab work is completed
+            db.execute('UPDATE consultations SET status=? WHERE id=?', ('waiting', exam['consultation_id']))
+            
             db.commit()
-            flash('Laboratory results submitted successfully!', 'success')
+            flash('Laboratory results submitted successfully! Patient sent back to consultation queue.', 'success')
         else:
             db.rollback()
             flash('No test results were uploaded. Please upload at least one result.', 'warning')
@@ -631,6 +918,170 @@ def submit_lab_results():
         flash(f'Error submitting results: {str(e)}', 'error')
     
     return redirect(url_for('laboratory'))
+
+@app.route('/account')
+@login_required
+def account():
+    """Display patients with prescriptions pending payment"""
+    db = get_db()
+    
+    account_patients = db.execute('''
+        SELECT 
+            pr.id as prescription_id,
+            pr.patient_id,
+            p.name,
+            p.gender,
+            p.payment_method,
+            pr.medicines,
+            pr.prescription_comment,
+            pr.management_plan,
+            pr.prescribed_by,
+            pr.prescribed_at,
+            pr.status,
+            pr.pharmacy_status,
+            c.id as consultation_id
+        FROM prescriptions pr
+        JOIN patients p ON pr.patient_id = p.id
+        JOIN consultations c ON pr.consultation_id = c.id
+        WHERE pr.pharmacy_status = 'not_sent'
+        ORDER BY pr.prescribed_at DESC
+    ''').fetchall()
+    
+    return render_template('account.html', patients=account_patients)
+
+@app.route('/account/complete/<int:prescription_id>', methods=['POST'])
+@login_required
+def complete_payment(prescription_id):
+    """Mark prescription as paid"""
+    db = get_db()
+    try:
+        payment_method = request.form.get('payment_method')
+        
+        if not payment_method:
+            flash('Please select a payment method!', 'error')
+            return redirect(url_for('account'))
+        
+        # Update payment method in patients table
+        prescription = db.execute('SELECT patient_id FROM prescriptions WHERE id=?', (prescription_id,)).fetchone()
+        
+        if prescription:
+            db.execute('UPDATE patients SET payment_method=? WHERE id=?', 
+                      (sanitize_input(payment_method), prescription['patient_id']))
+            
+            # Update prescription status
+            db.execute('UPDATE prescriptions SET status=? WHERE id=?', ('paid', prescription_id))
+            
+            db.commit()
+            flash('Payment completed successfully!', 'success')
+        else:
+            flash('Prescription not found!', 'error')
+            
+    except Exception as e:
+        db.rollback()
+        flash(f'Error processing payment: {str(e)}', 'error')
+    
+    return redirect(url_for('account'))
+
+@app.route('/account/send-to-pharmacy/<int:prescription_id>', methods=['POST'])
+@login_required
+def send_to_pharmacy(prescription_id):
+    """Send paid prescription to pharmacy"""
+    db = get_db()
+    try:
+        # Verify prescription is paid
+        prescription = db.execute('SELECT status FROM prescriptions WHERE id=?', (prescription_id,)).fetchone()
+        
+        if not prescription:
+            flash('Prescription not found!', 'error')
+        elif prescription['status'] != 'paid':
+            flash('Payment must be completed before sending to pharmacy!', 'error')
+        else:
+            # Update pharmacy status
+            db.execute('UPDATE prescriptions SET pharmacy_status=? WHERE id=?', ('sent', prescription_id))
+            db.commit()
+            flash('Patient sent to Pharmacy successfully!', 'success')
+            
+    except Exception as e:
+        db.rollback()
+        flash(f'Error sending to pharmacy: {str(e)}', 'error')
+    
+    return redirect(url_for('account'))
+
+@app.route('/pharmacy')
+@login_required
+def pharmacy():
+    """Display patients sent to pharmacy"""
+    db = get_db()
+    
+    pharmacy_patients = db.execute('''
+        SELECT 
+            pr.id as prescription_id,
+            pr.patient_id,
+            p.name,
+            p.gender,
+            p.date_of_birth,
+            p.contact,
+            p.payment_method,
+            pr.medicines,
+            pr.prescription_comment,
+            pr.management_plan,
+            pr.prescribed_by,
+            pr.prescribed_at,
+            pr.status
+        FROM prescriptions pr
+        JOIN patients p ON pr.patient_id = p.id
+        WHERE pr.pharmacy_status = 'sent'
+        ORDER BY pr.prescribed_at DESC
+    ''').fetchall()
+    
+    return render_template('pharmacy.html', patients=pharmacy_patients)
+
+@app.route('/pharmacy/complete/<int:prescription_id>', methods=['POST'])
+@login_required
+def complete_pharmacy(prescription_id):
+    """Complete pharmacy service and remove all patient records"""
+    db = get_db()
+    try:
+        # Get patient information before deletion
+        prescription = db.execute(
+            'SELECT patient_id FROM prescriptions WHERE id=?', 
+            (prescription_id,)
+        ).fetchone()
+        
+        if prescription:
+            patient_id = prescription['patient_id']
+            
+            # Delete patient record - this will cascade delete all related records
+            # (prescriptions, consultations, exams, laboratory, diagnoses, vitals, appointments)
+            db.execute('DELETE FROM patients WHERE id=?', (patient_id,))
+            db.commit()
+            
+            flash('Patient completed successfully! All records removed.', 'success')
+        else:
+            flash('Prescription not found!', 'error')
+            
+    except Exception as e:
+        db.rollback()
+        flash(f'Error completing pharmacy service: {str(e)}', 'error')
+    
+    return redirect(url_for('pharmacy'))
+
+@app.route('/pharmacy/cancel/<int:prescription_id>', methods=['POST'])
+@login_required
+def cancel_pharmacy(prescription_id):
+    """Cancel pharmacy service and send back to account"""
+    db = get_db()
+    try:
+        # Update pharmacy status back to not_sent
+        db.execute('UPDATE prescriptions SET pharmacy_status=? WHERE id=?', ('not_sent', prescription_id))
+        db.commit()
+        flash('Pharmacy service cancelled. Patient sent back to Account.', 'info')
+            
+    except Exception as e:
+        db.rollback()
+        flash(f'Error cancelling pharmacy service: {str(e)}', 'error')
+    
+    return redirect(url_for('pharmacy'))
 
 @app.route('/exams/cancel/<int:exam_id>', methods=['POST'])
 @login_required

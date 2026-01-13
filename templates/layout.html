@@ -43,89 +43,266 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .slide-in { animation: slideIn 0.3s ease-out; }
+        
+        /* Sidebar styles */
+        .sidebar { 
+            position: fixed; 
+            left: 0; 
+            top: 0; 
+            height: 100vh; 
+            width: 260px; 
+            background: linear-gradient(180deg, #065f46 0%, #047857 100%);
+            color: white;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .main-content { 
+            margin-left: 260px; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+        }
+        
+        .sidebar-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #fbbf24;
+        }
+        
+        .sidebar-link.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-left-color: #fbbf24;
+            font-weight: 600;
+        }
+        
+        .sidebar-link i {
+            width: 24px;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        
+        /* Mobile toggle button */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            background: #065f46;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .mobile-toggle {
+                display: block;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50">
     {% if session.user_id %}
-    <!-- Navigation Bar -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex">
-                    <div class="flex-shrink-0 flex items-center">
-                        <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Heart Logo" class="w-8 h-8 object-contain mr-3">
-                        <span class="text-xl font-bold text-gray-800">eCare Medical Records</span>
-                    </div>
-                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="{{ url_for('dashboard') }}" 
-                           class="{% if request.endpoint == 'dashboard' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
-                        </a>
-                        <a href="{{ url_for('patients') }}" 
-                           class="{% if request.endpoint == 'patients' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-users mr-2"></i> Patients
-                        </a>
-                        <a href="{{ url_for('vitals') }}" 
-                           class="{% if request.endpoint == 'vitals' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-notes-medical mr-2"></i> Vitals
-                        </a>
-                        <a href="{{ url_for('consultations') }}" 
-                           class="{% if request.endpoint == 'consultations' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-user-md mr-2"></i> Consultations
-                        </a>
-                        <a href="{{ url_for('laboratory') }}" 
-                           class="{% if request.endpoint == 'laboratory' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-flask mr-2"></i> Laboratory
-                        </a>
-                        <a href="{{ url_for('appointments') }}" 
-                           class="{% if request.endpoint == 'appointments' %}border-yellow-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            <i class="fas fa-calendar-alt mr-2"></i> Appointments
-                        </a>
-                    </div>
-                </div>
-                <div class="flex items-center">
-                    <span class="text-gray-700 mr-4">
-                        <i class="fas fa-user-nurse mr-2"></i>{{ session.username }}
-                    </span>
-                    <a href="{{ url_for('logout') }}" 
-                       class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                    </a>
+    <!-- Mobile Toggle Button -->
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Logo and Title -->
+        <div class="p-6 border-b border-green-700">
+            <div class="flex items-center justify-center">
+                <img src="{{ url_for('static', filename='images/heart-logo.png') }}" alt="Logo" class="w-10 h-10 object-contain mr-3">
+                <div>
+                    <h1 class="text-lg font-bold">eCare Medical</h1>
+                    <p class="text-xs text-green-200">Records System</p>
                 </div>
             </div>
         </div>
-    </nav>
+        
+        <!-- User Info -->
+        <div class="p-4 border-b border-green-700">
+            <div class="flex items-center">
+                <div class="bg-white bg-opacity-20 rounded-full p-2 mr-3">
+                    <i class="fas fa-user-nurse text-xl"></i>
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">{{ session.username }}</p>
+                    <p class="text-xs text-green-200">{{ session.role|title }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation Links -->
+        <nav class="py-4">
+            <a href="{{ url_for('dashboard') }}" 
+               class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            
+            <a href="{{ url_for('patients') }}" 
+               class="sidebar-link {% if request.endpoint == 'patients' %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                <span>Patients</span>
+            </a>
+            
+            <a href="{{ url_for('vitals') }}" 
+               class="sidebar-link {% if request.endpoint == 'vitals' %}active{% endif %}">
+                <i class="fas fa-notes-medical"></i>
+                <span>Vitals</span>
+            </a>
+            
+            <a href="{{ url_for('consultations') }}" 
+               class="sidebar-link {% if request.endpoint == 'consultations' %}active{% endif %}">
+                <i class="fas fa-user-md"></i>
+                <span>Consultations</span>
+            </a>
+            
+            <a href="{{ url_for('laboratory') }}" 
+               class="sidebar-link {% if request.endpoint == 'laboratory' %}active{% endif %}">
+                <i class="fas fa-flask"></i>
+                <span>Laboratory</span>
+            </a>
+            
+            <a href="{{ url_for('account') }}" 
+               class="sidebar-link {% if request.endpoint == 'account' %}active{% endif %}">
+                <i class="fas fa-dollar-sign"></i>
+                <span>Account</span>
+            </a>
+            
+            <a href="{{ url_for('pharmacy') }}" 
+               class="sidebar-link {% if request.endpoint == 'pharmacy' %}active{% endif %}">
+                <i class="fas fa-pills"></i>
+                <span>Pharmacy</span>
+            </a>
+            
+            <a href="{{ url_for('appointments') }}" 
+               class="sidebar-link {% if request.endpoint == 'appointments' %}active{% endif %}">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Appointments</span>
+            </a>
+        </nav>
+        
+        <!-- Logout Button -->
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-green-700">
+            <a href="{{ url_for('logout') }}" 
+               class="sidebar-link hover:bg-red-600 hover:border-red-600 rounded-lg">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+    
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <!-- Top Header Bar -->
+        <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-50">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    {% if request.endpoint == 'dashboard' %}Dashboard
+                    {% elif request.endpoint == 'patients' %}Patients Management
+                    {% elif request.endpoint == 'vitals' %}Vital Signs
+                    {% elif request.endpoint == 'consultations' %}Consultations
+                    {% elif request.endpoint == 'laboratory' %}Laboratory
+                    {% elif request.endpoint == 'appointments' %}Appointments
+                    {% else %}eCare Medical Records
+                    {% endif %}
+                </h2>
+                <div class="text-sm text-gray-600">
+                    <i class="far fa-calendar mr-2"></i><span id="currentDate"></span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="px-6 mt-4">
+                    {% for category, message in messages %}
+                        <div class="slide-in rounded-lg p-4 mb-4 {% if category == 'success' %}bg-green-100 text-green-800 border border-green-300{% elif category == 'error' %}bg-red-100 text-red-800 border border-red-300{% elif category == 'warning' %}bg-yellow-100 text-yellow-800 border border-yellow-300{% else %}bg-blue-100 text-blue-800 border border-blue-300{% endif %}">
+                            <div class="flex items-center">
+                                <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mr-3"></i>
+                                {{ message }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-6">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t mt-auto">
+            <div class="px-6 py-4">
+                <p class="text-center text-gray-500 text-sm">
+                    Clinical Management System 2026
+                </p>
+            </div>
+        </footer>
+    </div>
     {% endif %}
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-                {% for category, message in messages %}
-                    <div class="slide-in rounded-lg p-4 mb-4 {% if category == 'success' %}bg-green-100 text-green-800 border border-green-300{% elif category == 'error' %}bg-red-100 text-red-800 border border-red-300{% elif category == 'warning' %}bg-yellow-100 text-yellow-800 border border-yellow-300{% else %}bg-blue-100 text-blue-800 border border-blue-300{% endif %}">
-                        <div class="flex items-center">
-                            <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mr-3"></i>
-                            {{ message }}
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-white border-t mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <p class="text-center text-gray-500 text-sm">
-                Clinical Management System 2026
-            </p>
-        </div>
-    </footer>
+    <script>
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-toggle');
+            
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                    sidebar.classList.remove('show');
+                }
+            }
+        });
+        
+        // Display current date
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateElement = document.getElementById('currentDate');
+            if (dateElement) {
+                const now = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                dateElement.textContent = now.toLocaleDateString('en-US', options);
+            }
+        });
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>

@@ -1,11 +1,8 @@
-# Database setup and connection
-
 import sqlite3
 from flask import g, current_app
 from werkzeug.security import generate_password_hash
 
 def get_db():
-    # get or create db connection
     if 'db' not in g:
         g.db = sqlite3.connect(
             current_app.config['DATABASE'],
@@ -22,7 +19,6 @@ def close_db(e=None):
         db.close()
 
 def init_db():
-    # creates tables and default users
     db = get_db()
     
     # Create users table
@@ -146,6 +142,41 @@ def init_db():
         )
     ''')
     
+    # Create diagnoses table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS diagnoses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            patient_id INTEGER NOT NULL,
+            confirmed_diagnosis TEXT NOT NULL,
+            test_feedbacks TEXT,
+            lab_tech_comment TEXT,
+            diagnosis_notes TEXT,
+            diagnosed_by TEXT NOT NULL,
+            diagnosed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (consultation_id) REFERENCES consultations (id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create prescriptions table
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS prescriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            patient_id INTEGER NOT NULL,
+            medicines TEXT NOT NULL,
+            prescription_comment TEXT,
+            management_plan TEXT,
+            prescribed_by TEXT NOT NULL,
+            prescribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'pending',
+            pharmacy_status TEXT DEFAULT 'not_sent',
+            FOREIGN KEY (consultation_id) REFERENCES consultations (id) ON DELETE CASCADE,
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+        )
+    ''')
+    
     # Create indexes for foreign keys to improve query performance
     db.execute('CREATE INDEX IF NOT EXISTS idx_vitals_patient_id ON vitals(patient_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id)')
@@ -156,6 +187,10 @@ def init_db():
     db.execute('CREATE INDEX IF NOT EXISTS idx_exams_consultation_id ON exams(consultation_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_laboratory_exam_id ON laboratory(exam_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_laboratory_patient_id ON laboratory(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_patient_id ON diagnoses(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_consultation_id ON diagnoses(consultation_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON prescriptions(patient_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_prescriptions_consultation_id ON prescriptions(consultation_id)')
     
     # Check if default admin user exists
     admin = db.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
