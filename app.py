@@ -135,13 +135,14 @@ def add_patient():
         name = sanitize_input(request.form['name'])
         allergies = sanitize_input(request.form.get('allergies', ''))
         address = sanitize_input(request.form.get('address', ''))
+        department = sanitize_input(request.form.get('department', ''))
         
         db.execute(
-            '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address, payment_method)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            '''INSERT INTO patients (name, date_of_birth, gender, blood_type, allergies, contact, address, department, payment_method)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             (name, request.form['date_of_birth'], request.form['gender'],
              request.form['blood_type'], allergies,
-             request.form['contact'], address, request.form['payment_method'])
+             request.form['contact'], address, department, request.form['payment_method'])
         )
         db.commit()
         flash('Patient added successfully!', 'success')
@@ -160,14 +161,15 @@ def edit_patient(id):
         name = sanitize_input(request.form['name'])
         allergies = sanitize_input(request.form.get('allergies', ''))
         address = sanitize_input(request.form.get('address', ''))
+        department = sanitize_input(request.form.get('department', ''))
         
         db.execute(
             '''UPDATE patients 
-               SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?, payment_method=?
+               SET name=?, date_of_birth=?, gender=?, blood_type=?, allergies=?, contact=?, address=?, department=?, payment_method=?
                WHERE id=?''',
             (name, request.form['date_of_birth'], request.form['gender'],
              request.form['blood_type'], allergies,
-             request.form['contact'], address, request.form['payment_method'], id)
+             request.form['contact'], address, department, request.form['payment_method'], id)
         )
         db.commit()
         flash('Patient updated successfully!', 'success')

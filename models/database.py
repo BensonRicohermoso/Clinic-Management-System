@@ -44,6 +44,7 @@ def init_db():
             allergies TEXT,
             contact TEXT,
             address TEXT,
+            department TEXT,
             payment_method TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
