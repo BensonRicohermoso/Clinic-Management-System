@@ -15,20 +15,32 @@ app = Flask(__name__)
 config_name = os.environ.get('FLASK_ENV', 'development')
 app.config.from_object(config[config_name])
 
-# Validate critical environment variables
-if not os.environ.get('SECRET_KEY'):
+# Validate critical environment variables (only warn in development)
+if not os.environ.get('SECRET_KEY') and config_name == 'development':
     print("WARNING: Using default SECRET_KEY. Set SECRET_KEY environment variable in production!")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def sanitize_input(text):
+def validate_file_size(file, max_size_mb=10):
+    """Validate file size. Returns True if valid, False otherwise."""
+    file.seek(0, 2)  # Seek to end of file
+    file_size = file.tell()  # Get file size
+    file.seek(0)  # Reset to beginning
+    max_size_bytes = max_size_mb * 1024 * 1024
+    return file_size <= max_size_bytes
+
+def sanitize_input(text, max_length=1000):
     if not text:
         return text
-    # Remove HTML tags and dangerous characters
+    # Remove HTML tags and dangerous characters but preserve apostrophes for names like O'Brien
     text = re.sub(r'<[^>]*>', '', str(text))
-    text = re.sub(r'[<>"\']', '', text)
-    return text.strip()
+    text = re.sub(r'[<>"']', '', text)
+    text = text.strip()
+    # Limit length to prevent database issues
+    if len(text) > max_length:
+        text = text[:max_length]
+    return text
 
 with app.app_context():
     init_db()
@@ -42,6 +54,19 @@ def login_required(f):
         if 'user_id' not in session:
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('login'))
+        
+        # Validate that the user still exists and session is valid
+        if 'username' in session:
+            db = get_db()
+            user = db.execute(
+                'SELECT id FROM users WHERE id = ? AND username = ?',
+                (session['user_id'], session['username'])
+            ).fetchone()
+            if not user:
+                session.clear()
+                flash('Your session has expired. Please log in again.', 'warning')
+                return redirect(url_for('login'))
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -54,8 +79,12 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
+        username = sanitize_input(request.form.get('username', ''))
         password = request.form.get('password')
+        
+        if not username or not password:
+            flash('Username and password are required', 'error')
+            return render_template('login.html')
         
         db = get_db()
         user = db.execute(
@@ -63,6 +92,7 @@ def login():
         ).fetchone()
         
         if user and check_password_hash(user['password'], password):
+            session.permanent = True
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
@@ -129,8 +159,8 @@ def patients():
 @app.route('/patients/add', methods=['POST'])
 @login_required
 def add_patient():
+    db = get_db()
     try:
-        db = get_db()
         # Sanitize inputs
         name = sanitize_input(request.form['name'])
         allergies = sanitize_input(request.form.get('allergies', ''))
@@ -147,16 +177,18 @@ def add_patient():
         db.commit()
         flash('Patient added successfully!', 'success')
     except KeyError as e:
+        db.rollback()
         flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
     except Exception as e:
+        db.rollback()
         flash(f'Error adding patient: {str(e)}', 'error')
     return redirect(url_for('patients'))
 
 @app.route('/patients/edit/<int:id>', methods=['POST'])
 @login_required
 def edit_patient(id):
+    db = get_db()
     try:
-        db = get_db()
         # Sanitize inputs
         name = sanitize_input(request.form['name'])
         allergies = sanitize_input(request.form.get('allergies', ''))
@@ -174,8 +206,10 @@ def edit_patient(id):
         db.commit()
         flash('Patient updated successfully!', 'success')
     except KeyError as e:
+        db.rollback()
         flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
     except Exception as e:
+        db.rollback()
         flash(f'Error updating patient: {str(e)}', 'error')
     return redirect(url_for('patients'))
 
@@ -208,8 +242,8 @@ def vitals():
 @app.route('/vitals/add', methods=['POST'])
 @login_required
 def add_vitals():
+    db = get_db()
     try:
-        db = get_db()
         # Sanitize notes input
         notes = sanitize_input(request.form.get('notes', ''))
         
@@ -225,8 +259,10 @@ def add_vitals():
         db.commit()
         flash('Vital signs recorded successfully!', 'success')
     except KeyError as e:
+        db.rollback()
         flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
     except Exception as e:
+        db.rollback()
         flash(f'Error recording vitals: {str(e)}', 'error')
     return redirect(url_for('vitals'))
 
@@ -248,27 +284,41 @@ def appointments():
 @app.route('/appointments/add', methods=['POST'])
 @login_required
 def add_appointment():
-    appt_date = request.form['date']
-    today = datetime.now().strftime('%Y-%m-%d')
-    max_date = (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d')
-    
-    if appt_date < today:
-        flash('Cannot schedule appointments in the past!', 'error')
-        return redirect(url_for('appointments'))
-    
-    if appt_date > max_date:
-        flash('Cannot schedule appointments more than 1 year in advance!', 'error')
-        return redirect(url_for('appointments'))
-    
     db = get_db()
-    db.execute(
-        '''INSERT INTO appointments (patient_id, date, time, reason, status)
-           VALUES (?, ?, ?, ?, ?)''',
-        (request.form['patient_id'], request.form['date'],
-         request.form['time'], request.form['reason'], 'scheduled')
-    )
-    db.commit()
-    flash('Appointment scheduled successfully!', 'success')
+    try:
+        appt_date_str = request.form['date']
+        today = datetime.now().date()
+        max_date = today + timedelta(days=365)
+        
+        # Convert string to date object for proper comparison
+        try:
+            appt_date = datetime.strptime(appt_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            flash('Invalid date format!', 'error')
+            return redirect(url_for('appointments'))
+        
+        if appt_date < today:
+            flash('Cannot schedule appointments in the past!', 'error')
+            return redirect(url_for('appointments'))
+        
+        if appt_date > max_date:
+            flash('Cannot schedule appointments more than 1 year in advance!', 'error')
+            return redirect(url_for('appointments'))
+        
+        db.execute(
+            '''INSERT INTO appointments (patient_id, date, time, reason, status)
+               VALUES (?, ?, ?, ?, ?)''',
+            (request.form['patient_id'], appt_date_str,
+             request.form['time'], request.form['reason'], 'scheduled')
+        )
+        db.commit()
+        flash('Appointment scheduled successfully!', 'success')
+    except KeyError as e:
+        db.rollback()
+        flash(f'Missing field: {str(e)}. Please refresh the page and try again.', 'error')
+    except Exception as e:
+        db.rollback()
+        flash(f'Error scheduling appointment: {str(e)}', 'error')
     return redirect(url_for('appointments'))
 
 @app.route('/appointments/update/<int:id>/<status>')
@@ -295,7 +345,7 @@ def consultations():
     db = get_db()
     consultations_list = db.execute(
         '''SELECT c.*, p.name, p.date_of_birth, p.gender, p.blood_type, 
-                  p.allergies, p.contact, p.address
+                  p.allergies, p.contact, p.address, p.department, p.payment_method
            FROM consultations c
            JOIN patients p ON c.patient_id = p.id
            WHERE c.status = 'waiting'
@@ -338,14 +388,16 @@ def consultations():
 def add_to_consultation(patient_id):
     db = get_db()
     try:
-        # Check if patient already in waiting queue
+        # Check if patient has any active consultation (waiting, sent_to_lab, or completed with recent timestamp)
         existing = db.execute(
-            'SELECT id FROM consultations WHERE patient_id = ? AND status = "waiting"',
+            '''SELECT id, status FROM consultations 
+               WHERE patient_id = ? AND status IN ("waiting", "sent_to_lab")
+               ORDER BY created_at DESC LIMIT 1''',
             (patient_id,)
         ).fetchone()
         
         if existing:
-            flash('Patient is already in consultation queue!', 'warning')
+            flash(f'Patient already has an active consultation (status: {existing["status"]})!', 'warning')
             return redirect(url_for('patients'))
         
         # Insert new consultation
@@ -357,12 +409,8 @@ def add_to_consultation(patient_id):
         flash('Patient added to consultation queue!', 'success')
     except Exception as e:
         db.rollback()
-        # Check if it's a duplicate entry
-        existing = db.execute(
-            'SELECT * FROM consultations WHERE patient_id = ? AND status = "waiting"',
-            (patient_id,)
-        ).fetchone()
-        if existing:
+        # Check if it's a UNIQUE constraint violation
+        if 'UNIQUE constraint failed' in str(e):
             flash('Patient is already in consultation queue!', 'warning')
         else:
             flash(f'Error adding patient to queue: {str(e)}', 'error')
@@ -501,6 +549,11 @@ def submit_prescription():
         patient_id = request.form.get('patient_id')
         medicine_count = int(request.form.get('medicine_count', 0))
         
+        # Validate medicine count range
+        if medicine_count > 50:
+            flash('Maximum 50 medicines allowed per prescription!', 'error')
+            return redirect(url_for('consultations'))
+        
         # Validate consultation exists
         consultation = db.execute(
             'SELECT id FROM consultations WHERE id = ? AND patient_id = ?',
@@ -607,6 +660,12 @@ def get_patient_history(patient_id):
     # Get patient info
     patient = db.execute('SELECT * FROM patients WHERE id=?', (patient_id,)).fetchone()
     
+    if not patient:
+        return jsonify({
+            'success': False,
+            'error': 'Patient not found'
+        }), 404
+    
     # Get vitals history
     vitals = db.execute(
         '''SELECT * FROM vitals 
@@ -656,7 +715,8 @@ def get_patient_history(patient_id):
     ).fetchall()
     
     return jsonify({
-        'patient': dict(patient) if patient else None,
+        'success': True,
+        'patient': dict(patient),
         'vitals': [dict(v) for v in vitals],
         'appointments': [dict(a) for a in appointments],
         'exams': [dict(e) for e in exams],
@@ -807,6 +867,12 @@ def submit_lab_results():
         patient_id = request.form.get('patient_id')
         general_comments = sanitize_input(request.form.get('general_comments', ''))
         
+        # Validate patient exists
+        patient = db.execute('SELECT id FROM patients WHERE id=?', (patient_id,)).fetchone()
+        if not patient:
+            flash('Patient not found!', 'error')
+            return redirect(url_for('laboratory'))
+        
         # Get the exam details to know which tests were requested
         exam = db.execute('SELECT * FROM exams WHERE id=?', (exam_id,)).fetchone()
         
@@ -848,15 +914,28 @@ def submit_lab_results():
                 if file_key in request.files:
                     file = request.files[file_key]
                     if file and file.filename:
-                        # Validate file
+                        # Validate file type
                         if not allowed_file(file.filename):
                             # Rollback: delete already saved files
                             for saved_file in saved_files:
                                 try:
                                     os.remove(saved_file)
-                                except:
-                                    pass
+                                except (OSError, IOError) as cleanup_error:
+                                    print(f'Warning: Could not delete file {saved_file}: {cleanup_error}')
                             flash(f'Invalid file type for {test_name}. Allowed types: png, jpg, jpeg, gif, pdf', 'error')
+                            db.rollback()
+                            return redirect(url_for('laboratory'))
+                        
+                        # Validate file size (10MB max per file)
+                        if not validate_file_size(file, max_size_mb=10):
+                            # Rollback: delete already saved files
+                            for saved_file in saved_files:
+                                try:
+                                    os.remove(saved_file)
+                                except (OSError, IOError) as cleanup_error:
+                                    print(f'Warning: Could not delete file {saved_file}: {cleanup_error}')
+                            flash(f'File too large for {test_name}. Maximum size is 10MB per file.', 'error')
+                            db.rollback()
                             return redirect(url_for('laboratory'))
                         
                         try:
@@ -876,6 +955,12 @@ def submit_lab_results():
                             # Save file with error handling
                             file.save(filepath)
                             saved_files.append(filepath)
+                            
+                            # Set file permissions for cross-platform compatibility (especially macOS)
+                            try:
+                                os.chmod(filepath, 0o644)  # rw-r--r--
+                            except (OSError, IOError) as perm_error:
+                                print(f'Warning: Could not set file permissions for {filepath}: {perm_error}')
                             
                             # Store relative path for web access
                             relative_path = f"/static/lab_results/{filename}"
@@ -898,8 +983,8 @@ def submit_lab_results():
                             for saved_file in saved_files:
                                 try:
                                     os.remove(saved_file)
-                                except:
-                                    pass
+                                except (OSError, IOError) as cleanup_error:
+                                    print(f'Warning: Could not delete file {saved_file}: {cleanup_error}')
                             raise Exception(f"Error saving file for {test_name}: {str(file_error)}")
         
         # Update exam status
@@ -959,9 +1044,16 @@ def complete_payment(prescription_id):
     try:
         payment_method = request.form.get('payment_method')
         
+        # Validate payment method
+        allowed_methods = ['cash', 'insurance', 'card', 'mobile_money']
         if not payment_method:
             flash('Please select a payment method!', 'error')
             return redirect(url_for('account'))
+        
+        # Normalize to lowercase for consistency
+        payment_method = payment_method.lower()
+        if payment_method not in allowed_methods:
+            payment_method = 'cash'  # Default to cash if invalid
         
         # Update payment method in patients table
         prescription = db.execute('SELECT patient_id FROM prescriptions WHERE id=?', (prescription_id,)).fetchone()
@@ -1119,4 +1211,5 @@ def cancel_exam(exam_id):
     return redirect(url_for('laboratory'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use port 5001 instead of 5000 to avoid conflict with macOS AirPlay Receiver (Monterey+)
+    app.run(debug=True, host='0.0.0.0', port=5001)

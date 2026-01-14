@@ -3,14 +3,18 @@
 import os
 from datetime import timedelta
 
+# Get the directory where this config file is located
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 class Config:
     # base config
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
-    DATABASE = os.environ.get('DATABASE_PATH') or 'clinical_management.db'
+    # Use absolute path for database
+    DATABASE = os.environ.get('DATABASE_PATH') or os.path.join(BASE_DIR, 'clinical_management.db')
     
-    # File upload settings
-    UPLOAD_FOLDER = os.path.join('static', 'lab_results')
+    # File upload settings - use absolute path
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'lab_results')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
     

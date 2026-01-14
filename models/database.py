@@ -83,7 +83,7 @@ def init_db():
         )
     ''')
     
-    # Create consultations table
+    # Create consultations table with unique constraint
     db.execute('''
         CREATE TABLE IF NOT EXISTS consultations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,7 +91,8 @@ def init_db():
             status TEXT DEFAULT 'waiting',
             added_by TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE
+            FOREIGN KEY (patient_id) REFERENCES patients (id) ON DELETE CASCADE,
+            UNIQUE(patient_id, status)
         )
     ''')
     
@@ -192,6 +193,7 @@ def init_db():
     db.execute('CREATE INDEX IF NOT EXISTS idx_diagnoses_consultation_id ON diagnoses(consultation_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_id ON prescriptions(patient_id)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_prescriptions_consultation_id ON prescriptions(consultation_id)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_prescriptions_pharmacy_status ON prescriptions(pharmacy_status)')
     
     # Check if default admin user exists
     admin = db.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()

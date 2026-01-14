@@ -34,7 +34,7 @@ def main():
     app.config['TESTING'] = False
     
     host = os.environ.get('CMS_HOST', '0.0.0.0')
-    port = int(os.environ.get('CMS_PORT', 5000))
+    port = int(os.environ.get('CMS_PORT', 5001))  # Changed to 5001 for macOS Monterey+ compatibility
     
     print(f"Starting server on http://{host}:{port}")
     print("Press CTRL+C to stop\n")
